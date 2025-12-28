@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام توزيع الأساتذة - مراقبة الامتحانات</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <!-- Barre de navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>نظام توزيع الأساتذة</span>
+            </div>
+            <div class="nav-tabs" id="navTabs">
+                <button class="nav-tab active" data-tab="accueil">
+                    <i class="fas fa-home"></i> الصفحة الرئيسية
+                </button>
+                <button class="nav-tab" data-tab="professeurs">
+                    <i class="fas fa-users"></i> الأساتذة
+                </button>
+                <button class="nav-tab" data-tab="parametres">
+                    <i class="fas fa-cog"></i> الإعدادات
+                </button>
+                <button class="nav-tab" data-tab="affectations">
+                    <i class="fas fa-tasks"></i> التوزيع
+                </button>
+            </div>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Barre de statut -->
+    <div class="status-bar">
+        <div class="status-container">
+            <span id="statusMessage">جاهز • نظام توزيع الأساتذة</span>
+            <span id="profCount">الأساتذة: 0</span>
+        </div>
+    </div>
+
+    <!-- Contenu principal -->
+    <main class="main-content">
+        <!-- Onglet Accueil -->
+        <section id="accueil" class="tab-content active">
+            <div class="card welcome-card">
+                <div class="card-header">
+                    <h1><i class="fas fa-graduation-cap"></i> نظام توزيع الأساتذة</h1>
+                    <p>حل ذكي لمراقبة الامتحانات</p>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3>إدارة الأساتذة</h3>
+                        <p>استيراد وإدارة كاملة لقائمة الأساتذة</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <h3>إعدادات مرنة</h3>
+                        <p>تخصيص القاعات، المواد، والقيود</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-calendar-times"></i>
+                        </div>
+                        <h3>إدارة عدم التوفر</h3>
+                        <p>أخذ قيود التوفر بعين الاعتبار</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3>توليد ذكي</h3>
+                        <p>خوارزمية محسنة للتوزيع</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <h3>نتائج مفصلة</h3>
+                        <p>عرض واضح حسب القاعة واليوم</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-file-excel"></i>
+                        </div>
+                        <h3>تصدير احترافي</h3>
+                        <p>تصدير إلى ملف إكسل مع تنسيق متقدم</p>
+                    </div>
+                </div>
+                
+                <div class="action-center">
+                    <button class="btn btn-primary btn-lg" id="startConfig">
+                        <i class="fas fa-rocket"></i> بدء الإعدادات →
+                    </button>
+                </div>
+                
+                <div class="steps-guide">
+                    <h3><i class="fas fa-list-ol"></i> خطوات العمل</h3>
+                    <ol>
+                        <li>استيراد أو إضافة الأساتذة</li>
+                        <li>تكوين إعدادات الامتحانات</li>
+                        <li>تحديد قيود التوزيع</li>
+                        <li>توليد وتصدير النتائج</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <!-- Onglet Professeurs -->
+        <section id="professeurs" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-users"></i> إدارة الأساتذة</h2>
+                </div>
+                
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-list"></i>
+                        </div>
+                        <h3>إجمالي الأساتذة</h3>
+                        <p id="totalProfs">0</p>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h3>متاحون</h3>
+                        <p id="availableProfs">0</p>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h3>مع عدم التوفر</h3>
+                        <p id="unavailableProfs">0</p>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="importExcelBtn">
+                        <i class="fas fa-file-import"></i> استيراد من إكسل
+                    </button>
+                    <button class="btn btn-success" id="addProfessorBtn">
+                        <i class="fas fa-user-plus"></i> إضافة أستاذ
+                    </button>
+                    <button class="btn btn-warning" id="editProfessorBtn">
+                        <i class="fas fa-edit"></i> تعديل أستاذ
+                    </button>
+                    <button class="btn btn-warning" id="deleteProfessorBtn">
+                        <i class="fas fa-trash"></i> حذف أستاذ
+                    </button>
+                    <button class="btn btn-primary" id="manageUnavailabilityBtn">
+                        <i class="fas fa-calendar-alt"></i> إدارة عدم التوفر
+                    </button>
+                    <button class="btn btn-success" id="extractSubjectsBtn">
+                        <i class="fas fa-book"></i> استخراج المواد
+                    </button>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table" id="professorsTable">
+                        <thead>
+                            <tr>
+                                <th>الاسم الكامل</th>
+                                <th>المادة</th>
+                                <th>رقم تأجير</th>
+                                <th>فترات عدم التوفر</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="professorsTableBody">
+                            <!-- Les données seront insérées ici par JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Onglet Paramètres -->
+        <section id="parametres" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-cog"></i> إعدادات الامتحانات</h2>
+                </div>
+                
+                <div class="settings-container">
+                    <!-- Type d'examen -->
+                    <div class="setting-card">
+                        <h3><i class="fas fa-bullseye"></i> نوع الامتحان</h3>
+                        <div class="form-group">
+                            <label>نوع الامتحان:</label>
+                            <input type="text" id="examType" class="form-control" value="امتحان عادي">
+                        </div>
+                    </div>
+                    
+                    <!-- Configuration des salles -->
+                    <div class="setting-card">
+                        <h3><i class="fas fa-school"></i> إعداد القاعات</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>عدد القاعات:</label>
+                                <input type="number" id="roomCount" class="form-control" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label>عدد الأساتذة في كل قاعة:</label>
+                                <input type="number" id="profsPerRoom" class="form-control" value="2" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuration des matières -->
+                    <div class="setting-card">
+                        <h3><i class="fas fa-book"></i> إعداد المواد</h3>
+                        <div class="form-group">
+                            <label>عدد المواد:</label>
+                            <div class="input-group">
+                                <input type="number" id="subjectCount" class="form-control" min="0">
+                                <button class="btn btn-primary" id="generateSubjectsForm">
+                                    <i class="fas fa-magic"></i> توليد نموذج المواد
+                                </button>
+                                <button class="btn btn-success" id="fillFromProfessors">
+                                    <i class="fas fa-book"></i> ملء من الأساتذة
+                                </button>
+                                <button class="btn btn-warning" id="deleteSubjectBtn">
+                                    <i class="fas fa-trash"></i> حذف مادة
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="subjectsFormContainer">
+                            <!-- Le formulaire des matières sera généré ici -->
+                        </div>
+                    </div>
+                    
+                    <!-- Contraintes -->
+                    <div class="setting-card">
+                        <h3><i class="fas fa-lock"></i> قيود التوزيع</h3>
+                        <div class="constraints">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="constraint1" checked>
+                                <label for="constraint1">
+                                    <i class="fas fa-check-circle"></i>
+                                    الأستاذ لا يراقب مادته الخاصة
+                                </label>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="constraint2" checked>
+                                <label for="constraint2">
+                                    <i class="fas fa-ban"></i>
+                                    الأستاذ ليس في نفس القاعة مرتين
+                                </label>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="constraint3" checked>
+                                <label for="constraint3">
+                                    <i class="fas fa-user-friends"></i>
+                                    الأستاذ ليس مع نفس المجموعة مرتين
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Onglet Affectations -->
+        <section id="affectations" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-tasks"></i> نتائج التوزيع</h2>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="generateAssignmentsBtn">
+                        <i class="fas fa-cogs"></i> توليد التوزيع
+                    </button>
+                    <button class="btn btn-success" id="exportExcelBtn">
+                        <i class="fas fa-file-excel"></i> تصدير إلى إكسل
+                    </button>
+                </div>
+                
+                <div class="stats-cards" id="assignmentsStats">
+                    <!-- Les statistiques seront ajoutées ici -->
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table" id="assignmentsTable">
+                        <thead>
+                            <tr>
+                                <th>المادة</th>
+                                <th>تاريخ ووقت الامتحان</th>
+                                <th>القاعة</th>
+                                <th>قائمة الأساتذة</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assignmentsTableBody">
+                            <!-- Les données seront insérées ici par JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <!-- Modal Ajouter/Modifier Professeur -->
+    <div id="professorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">إضافة أستاذ جديد</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="professorForm">
+                    <div class="form-group">
+                        <label>الاسم الكامل *</label>
+                        <input type="text" id="fullName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>المادة *</label>
+                        <input type="text" id="subject" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم تأجير (اختياري)</label>
+                        <input type="text" id="rentalNumber" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="saveProfessorBtn">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
+                <button class="btn btn-warning close-btn">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gérer Indisponibilités -->
+    <div id="unavailabilityModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="unavailabilityTitle">إدارة عدم التوفر</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>أيام عدم التوفر (مفصولة بفاصلة):</label>
+                    <textarea id="unavailabilityDays" class="form-control" rows="3" 
+                              placeholder="مثال: 15/12/2024, 16/12/2024, 17/12/2024"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>فترات عدم التوفر:</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="morningPeriod">
+                        <label for="morningPeriod">
+                            <i class="fas fa-sun"></i> صباح
+                        </label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="eveningPeriod">
+                        <label for="eveningPeriod">
+                            <i class="fas fa-moon"></i> مساء
+                        </label>
+                    </div>
+                </div>
+                <p class="info-text">
+                    <i class="fas fa-info-circle"></i>
+                    الفترات المحددة ستطبق على كل الأيام المذكورة
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="saveUnavailabilityBtn">
+                    <i class="fas fa-check"></i> حفظ
+                </button>
+                <button class="btn btn-warning close-btn">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Extraire Matières -->
+    <div id="subjectsExtractModal" class="modal">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h3>المواد المستخرجة من الأساتذة</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="table-container">
+                    <table class="data-table" id="extractedSubjectsTable">
+                        <thead>
+                            <tr>
+                                <th>اختيار</th>
+                                <th>المادة</th>
+                                <th>عدد الأساتذة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="extractedSubjectsBody">
+                            <!-- Les données seront insérées ici par JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <p class="info-text">
+                    <i class="fas fa-mouse-pointer"></i>
+                    انقر على مادة لتحديدها/إلغاء تحديدها
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="useSelectedSubjectsBtn">
+                    <i class="fas fa-check"></i> استخدام المواد المحددة
+                </button>
+                <button class="btn btn-warning" id="deleteSelectedSubjectsBtn">
+                    <i class="fas fa-trash"></i> حذف المواد المحددة
+                </button>
+                <button class="btn btn-warning close-btn">
+                    <i class="fas fa-times"></i> إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Configuration Excel -->
+    <div id="excelConfigModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تكوين ملف الإكسل</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="excelConfigForm">
+                    <div class="form-group">
+                        <label>الجامعة / المؤسسة *</label>
+                        <input type="text" id="universityName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>الكلية / القسم *</label>
+                        <input type="text" id="facultyName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>السنة الجامعية *</label>
+                        <input type="text" id="academicYear" class="form-control" value="2024-2025" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="generateExcelBtn">
+                    <i class="fas fa-file-excel"></i> توليد ملف الإكسل
+                </button>
+                <button class="btn btn-warning close-btn">
+                    <i class="fas fa-times"></i> إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Configuration Excel -->
+<div id="excelConfigModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>تكوين ملف الإكسل</h3>
+            <button class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="excelConfigForm">
+                <div class="form-group">
+                    <label>الجامعة / المؤسسة *</label>
+                    <input type="text" id="universityName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>الكلية / القسم *</label>
+                    <input type="text" id="facultyName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>السنة الجامعية *</label>
+                    <input type="text" id="academicYear" class="form-control" value="2024-2025" required>
+                </div>
+                <div class="info-text">
+                    <i class="fas fa-info-circle"></i>
+                    سيتم إنشاء ملف إكسل يحتوي على:
+                    <ul>
+                        <li>ورقة "الجدول العام" تحتوي على جميع المواد</li>
+                        <li>ورقة منفصلة لكل مادة</li>
+                        <li>الأساتذة مقسمون على أعمدة منفصلة حسب العدد المحدد لكل قاعة</li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-success" id="generateExcelBtn">
+                <i class="fas fa-file-excel"></i> توليد ملف الإكسل
+            </button>
+            <button class="btn btn-warning close-btn">
+                <i class="fas fa-times"></i> إلغاء
+            </button>
+        </div>
+    </div>
+</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
