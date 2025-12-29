@@ -220,7 +220,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>عدد القاعات:</label>
-                                <input type="number" id="roomCount" class="form-control" min="1">
+                                <input type="number" id="roomCount" class="form-control"  value="17" min="1">
                             </div>
                             <div class="form-group">
                                 <label>عدد الأساتذة في كل قاعة:</label>
@@ -445,39 +445,6 @@
     </div>
 
     <!-- Modal Configuration Excel -->
-    <div id="excelConfigModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>تكوين ملف الإكسل</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="excelConfigForm">
-                    <div class="form-group">
-                        <label>الجامعة / المؤسسة *</label>
-                        <input type="text" id="universityName" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>الكلية / القسم *</label>
-                        <input type="text" id="facultyName" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>السنة الجامعية *</label>
-                        <input type="text" id="academicYear" class="form-control" value="2024-2025" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-success" id="generateExcelBtn">
-                    <i class="fas fa-file-excel"></i> توليد ملف الإكسل
-                </button>
-                <button class="btn btn-warning close-btn">
-                    <i class="fas fa-times"></i> إلغاء
-                </button>
-            </div>
-        </div>
-    </div>
-    <!-- Modal Configuration Excel -->
 <div id="excelConfigModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -486,27 +453,28 @@
         </div>
         <div class="modal-body">
             <form id="excelConfigForm">
+
                 <div class="form-group">
-                    <label>الجامعة / المؤسسة *</label>
+                    <label>الوزارة</label>
+                    <input type="text" id="faculty" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>المديرية</label>
                     <input type="text" id="universityName" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>الكلية / القسم *</label>
+                    <label>الأكادمية</label>
                     <input type="text" id="facultyName" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>السنة الجامعية *</label>
-                    <input type="text" id="academicYear" class="form-control" value="2024-2025" required>
+                    <label>المؤسسة</label>
+                    <input type="text" id="ecoleName" class="form-control" required>
                 </div>
-                <div class="info-text">
-                    <i class="fas fa-info-circle"></i>
-                    سيتم إنشاء ملف إكسل يحتوي على:
-                    <ul>
-                        <li>ورقة "الجدول العام" تحتوي على جميع المواد</li>
-                        <li>ورقة منفصلة لكل مادة</li>
-                        <li>الأساتذة مقسمون على أعمدة منفصلة حسب العدد المحدد لكل قاعة</li>
-                    </ul>
+                <div class="form-group">
+                    <label>السنة الدراسية </label>
+                    <input type="text" id="academicYear" class="form-control" required>
                 </div>
+                
             </form>
         </div>
         <div class="modal-footer">

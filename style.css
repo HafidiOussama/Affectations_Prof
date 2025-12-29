@@ -671,3 +671,53 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-dark);
 }
+
+
+/* Styles spécifiques pour les tableaux RTL */
+.data-table {
+    direction: rtl;
+}
+
+.data-table th {
+    text-align: right;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: none;
+}
+
+.data-table th:first-child {
+    border-left: none;
+}
+
+.data-table td {
+    text-align: right;
+    border-left: 1px solid var(--border-color);
+    border-right: none;
+}
+
+.data-table td:first-child {
+    border-left: none;
+}
+
+/* Alignement spécifique pour les nombres */
+.data-table td[align="right"] {
+    text-align: left;
+}
+
+/* Style pour les cellules vides */
+.data-table td:empty::before {
+    content: "---";
+    color: var(--muted-text);
+    font-style: italic;
+}
+
+/* Responsive pour les tableaux */
+@media (max-width: 768px) {
+    .data-table {
+        font-size: 0.9rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 10px;
+    }
+}
