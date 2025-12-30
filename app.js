@@ -368,47 +368,58 @@ class ApplicationAffectation {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
                     
                     if (jsonData.length === 0) {
                         Swal.fire('خطأ', 'الملف فارغ', 'error');
                         return;
                     }
                     
-                    // Chercher les colonnes attendues (en commençant de droite à gauche)
-                    const firstRow = jsonData[0];
-                    const columns = Object.keys(firstRow);
+                    // Trouver les indices des colonnes
+                    const headers = jsonData[0];
+                    let nomIndex = -1;
+                    let matiereIndex = -1;
                     
-                    // Pour l'importation Excel, nous supposons que les colonnes sont de droite à gauche:
-                    // Colonne A (la plus à droite) - Nombre de ligne (nous l'ignorons)
-                    // Colonne B - Nom du professeur
-                    // Colonne C - Matière
-                    let nomCol, matiereCol;
+                    // Chercher les en-têtes
+                    headers.forEach((header, index) => {
+                        const headerStr = String(header || '').trim();
+                        if (headerStr.includes('اسم') || headerStr.includes('الاسم') || headerStr.includes('name') || headerStr.includes('Name')) {
+                            nomIndex = index;
+                        }
+                        if (headerStr.includes('مادة') || headerStr.includes('المادة') || headerStr.includes('subject') || headerStr.includes('Subject') || headerStr.includes('matière')) {
+                            matiereIndex = index;
+                        }
+                    });
                     
-                    // Pour gérer la direction droite-gauche, nous prenons les colonnes disponibles
-                    if (columns.length >= 2) {
-                        // Dans Excel RTL, la dernière colonne est la plus à droite
-                        matiereCol = columns[0]; // Colonne C (la plus à droite dans RTL)
-                        nomCol = columns[1];     // Colonne B
-                        // Colonne A (numéro de ligne) est ignorée
-                    } else if (columns.length === 1) {
-                        nomCol = columns[0];
-                        matiereCol = columns[0]; // Même colonne si une seule
-                    }
+                    // Si les en-têtes ne sont pas trouvés, utiliser les premières colonnes
+                    if (nomIndex === -1 && headers.length > 0) nomIndex = 0;
+                    if (matiereIndex === -1 && headers.length > 1) matiereIndex = 1;
                     
-                    if (!nomCol || !matiereCol) {
+                    if (nomIndex === -1 || matiereIndex === -1) {
                         Swal.fire('خطأ', 
                             'الملف لا يحتوي على الأعمدة المطلوبة (الاسم الكامل، المادة)',
                             'error');
                         return;
                     }
                     
-                    this.professeurs = jsonData.map(row => ({
-                        nom: row[nomCol] || '',
-                        matiere: row[matiereCol] || '',
-                        numero: '', // Plus de numéro de location
-                        indisponibilites: []
-                    }));
+                    // Traiter les données (sans l'en-tête)
+                    this.professeurs = [];
+                    for (let i = 1; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0) continue;
+                        
+                        const nom = String(row[nomIndex] || '').trim();
+                        const matiere = String(row[matiereIndex] || '').trim();
+                        
+                        if (nom && matiere) {
+                            this.professeurs.push({
+                                nom: nom,
+                                matiere: matiere,
+                                numero: '',
+                                indisponibilites: []
+                            });
+                        }
+                    }
                     
                     this.afficherProfesseurs();
                     this.updateStats();
@@ -429,6 +440,7 @@ class ApplicationAffectation {
                     Swal.fire('نجاح', message, 'success');
                     
                 } catch (error) {
+                    console.error('Error reading file:', error);
                     Swal.fire('خطأ', `خطأ في قراءة الملف: ${error.message}`, 'error');
                 }
             };
@@ -446,7 +458,7 @@ class ApplicationAffectation {
         
         const matieresCount = {};
         this.professeurs.forEach(prof => {
-            const matiere = prof.matiere?.trim();
+            const matiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
             if (matiere) {
                 matieresCount[matiere] = (matieresCount[matiere] || 0) + 1;
             }
@@ -551,7 +563,8 @@ class ApplicationAffectation {
             if (result.isConfirmed) {
                 let count = 0;
                 this.professeurs.forEach(prof => {
-                    if (matieresArray.includes(prof.matiere)) {
+                    const profMatiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
+                    if (matieresArray.includes(profMatiere)) {
                         prof.matiere = '';
                         count++;
                     }
@@ -924,7 +937,10 @@ class ApplicationAffectation {
         // Utiliser le nom comme identifiant
         const profId = prof.nom;
         
-        if (pasPropreMatiere && prof.matiere === matiere) {
+        // Convertir la matière du professeur en chaîne de caractères
+        const profMatiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
+        
+        if (pasPropreMatiere && profMatiere === matiere) {
             return false;
         }
         
