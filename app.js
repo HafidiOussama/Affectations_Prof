@@ -375,16 +375,26 @@ class ApplicationAffectation {
                         return;
                     }
                     
-                    // Chercher les colonnes attendues
+                    // Chercher les colonnes attendues (en commençant de droite à gauche)
                     const firstRow = jsonData[0];
                     const columns = Object.keys(firstRow);
                     
-                    let nomCol, matiereCol, numeroCol;
+                    // Pour l'importation Excel, nous supposons que les colonnes sont de droite à gauche:
+                    // Colonne A (la plus à droite) - Nombre de ligne (nous l'ignorons)
+                    // Colonne B - Nom du professeur
+                    // Colonne C - Matière
+                    let nomCol, matiereCol;
                     
-                    // Chercher les colonnes par nom arabe
-                    nomCol = columns.find(col => col.includes('اسم') || col.includes('الاسم'));
-                    matiereCol = columns.find(col => col.includes('مادة') || col.includes('المادة'));
-                    numeroCol = columns.find(col => col.includes('رقم') || col.includes('تأجير'));
+                    // Pour gérer la direction droite-gauche, nous prenons les colonnes disponibles
+                    if (columns.length >= 2) {
+                        // Dans Excel RTL, la dernière colonne est la plus à droite
+                        matiereCol = columns[0]; // Colonne C (la plus à droite dans RTL)
+                        nomCol = columns[1];     // Colonne B
+                        // Colonne A (numéro de ligne) est ignorée
+                    } else if (columns.length === 1) {
+                        nomCol = columns[0];
+                        matiereCol = columns[0]; // Même colonne si une seule
+                    }
                     
                     if (!nomCol || !matiereCol) {
                         Swal.fire('خطأ', 
@@ -396,7 +406,7 @@ class ApplicationAffectation {
                     this.professeurs = jsonData.map(row => ({
                         nom: row[nomCol] || '',
                         matiere: row[matiereCol] || '',
-                        numero: row[numeroCol] || '',
+                        numero: '', // Plus de numéro de location
                         indisponibilites: []
                     }));
                     
@@ -867,24 +877,26 @@ class ApplicationAffectation {
                     if (profTrouve) {
                         profsAffectes.push(profTrouve);
                         
-                        if (!historiqueProfs[profTrouve.numero]) {
-                            historiqueProfs[profTrouve.numero] = {
+                        // Utiliser le nom comme identifiant au lieu du numéro de location
+                        const profId = profTrouve.nom;
+                        
+                        if (!historiqueProfs[profId]) {
+                            historiqueProfs[profId] = {
                                 salles: new Set(),
                                 matieres: new Set(),
                                 creneaux: new Set()
                             };
                         }
                         
-                        historiqueProfs[profTrouve.numero].salles.add(salle);
-                        historiqueProfs[profTrouve.numero].matieres.add(matiere.nom);
-                        historiqueProfs[profTrouve.numero].creneaux.add(demiJournee);
+                        historiqueProfs[profId].salles.add(salle);
+                        historiqueProfs[profId].matieres.add(matiere.nom);
+                        historiqueProfs[profId].creneaux.add(demiJournee);
                         
                         affectations.push({
                             matiere: matiere.nom,
                             date_heure: dateHeure,
                             salle: salle,
                             professeur: profTrouve.nom,
-                            numero_prof: profTrouve.numero,
                             periode: matiere.periode
                         });
                     }
@@ -909,15 +921,18 @@ class ApplicationAffectation {
         const pasMemeSalle = document.getElementById('constraint2').checked;
         const pasMemeGroupe = document.getElementById('constraint3').checked;
         
+        // Utiliser le nom comme identifiant
+        const profId = prof.nom;
+        
         if (pasPropreMatiere && prof.matiere === matiere) {
             return false;
         }
         
-        if (pasMemeSalle && historique[prof.numero] && historique[prof.numero].salles.has(salle)) {
+        if (pasMemeSalle && historique[profId] && historique[profId].salles.has(salle)) {
             return false;
         }
         
-        if (pasMemeGroupe && historique[prof.numero] && historique[prof.numero].creneaux.has(demiJournee)) {
+        if (pasMemeGroupe && historique[profId] && historique[profId].creneaux.has(demiJournee)) {
             return false;
         }
         
@@ -925,66 +940,66 @@ class ApplicationAffectation {
     }
 
     afficherResultats() {
-    const tbody = document.getElementById('assignmentsTableBody');
-    tbody.innerHTML = '';
-    
-    if (this.affectations.length === 0) return;
-    
-    const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
-    const affectationsParMatiere = {};
-    
-    // Organiser les affectations
-    this.affectations.forEach(affectation => {
-        const matiere = affectation.matiere;
-        if (!affectationsParMatiere[matiere]) {
-            affectationsParMatiere[matiere] = {};
-        }
+        const tbody = document.getElementById('assignmentsTableBody');
+        tbody.innerHTML = '';
         
-        const salle = affectation.salle;
-        if (!affectationsParMatiere[matiere][salle]) {
-            affectationsParMatiere[matiere][salle] = {
-                date_heure: affectation.date_heure,
-                professeurs: []
-            };
-        }
+        if (this.affectations.length === 0) return;
         
-        affectationsParMatiere[matiere][salle].professeurs.push(affectation.professeur);
-    });
-    
-    // Mettre à jour l'en-tête du tableau (de droite à gauche)
-    const thead = document.querySelector('#assignmentsTable thead tr');
-    thead.innerHTML = '<th>الحالة</th>';
-    
-    // Ajouter les colonnes pour chaque professeur (de droite à gauche)
-    for (let i = nbrProfsSalle; i >= 1; i--) {
-        thead.innerHTML += `<th>الأستاذ ${i}</th>`;
-    }
-    
-    thead.innerHTML += '<th>القاعة</th><th>تاريخ ووقت الامتحان</th><th>المادة</th>';
-    
-    // Afficher les données
-    for (const [matiere, salles] of Object.entries(affectationsParMatiere)) {
-        for (const [salle, info] of Object.entries(salles)) {
-            const tr = document.createElement('tr');
-            let rowHTML = '';
-            
-            // Ajouter la colonne état (première colonne à droite)
-            const statut = info.professeurs.length >= nbrProfsSalle ? '🟢 مكتمل' : '🟡 جزئي';
-            rowHTML += `<td>${statut}</td>`;
-            
-            // Ajouter les professeurs dans des colonnes séparées (de droite à gauche)
-            for (let i = nbrProfsSalle - 1; i >= 0; i--) {
-                rowHTML += `<td>${info.professeurs[i] || ''}</td>`;
+        const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
+        const affectationsParMatiere = {};
+        
+        // Organiser les affectations
+        this.affectations.forEach(affectation => {
+            const matiere = affectation.matiere;
+            if (!affectationsParMatiere[matiere]) {
+                affectationsParMatiere[matiere] = {};
             }
             
-            // Ajouter les autres colonnes
-            rowHTML += `<td>${salle}</td><td>${info.date_heure}</td><td>${matiere}</td>`;
+            const salle = affectation.salle;
+            if (!affectationsParMatiere[matiere][salle]) {
+                affectationsParMatiere[matiere][salle] = {
+                    date_heure: affectation.date_heure,
+                    professeurs: []
+                };
+            }
             
-            tr.innerHTML = rowHTML;
-            tbody.appendChild(tr);
+            affectationsParMatiere[matiere][salle].professeurs.push(affectation.professeur);
+        });
+        
+        // Mettre à jour l'en-tête du tableau (de droite à gauche)
+        const thead = document.querySelector('#assignmentsTable thead tr');
+        thead.innerHTML = '<th>الحالة</th>';
+        
+        // Ajouter les colonnes pour chaque professeur (de droite à gauche)
+        for (let i = nbrProfsSalle; i >= 1; i--) {
+            thead.innerHTML += `<th>الأستاذ ${i}</th>`;
+        }
+        
+        thead.innerHTML += '<th>القاعة</th><th>تاريخ ووقت الامتحان</th><th>المادة</th>';
+        
+        // Afficher les données
+        for (const [matiere, salles] of Object.entries(affectationsParMatiere)) {
+            for (const [salle, info] of Object.entries(salles)) {
+                const tr = document.createElement('tr');
+                let rowHTML = '';
+                
+                // Ajouter la colonne état (première colonne à droite)
+                const statut = info.professeurs.length >= nbrProfsSalle ? '🟢 مكتمل' : '🟡 جزئي';
+                rowHTML += `<td>${statut}</td>`;
+                
+                // Ajouter les professeurs dans des colonnes séparées (de droite à gauche)
+                for (let i = nbrProfsSalle - 1; i >= 0; i--) {
+                    rowHTML += `<td>${info.professeurs[i] || ''}</td>`;
+                }
+                
+                // Ajouter les autres colonnes
+                rowHTML += `<td>${salle}</td><td>${info.date_heure}</td><td>${matiere}</td>`;
+                
+                tr.innerHTML = rowHTML;
+                tbody.appendChild(tr);
+            }
         }
     }
-}
 
     afficherStatsAffectations() {
         const container = document.getElementById('assignmentsStats');
@@ -994,7 +1009,7 @@ class ApplicationAffectation {
         
         const totalAffectations = this.affectations.length;
         const matieresUniques = new Set(this.affectations.map(a => a.matiere)).size;
-        const profsAffectes = new Set(this.affectations.map(a => a.numero_prof)).size;
+        const profsAffectes = new Set(this.affectations.map(a => a.professeur)).size;
         const sallesUtilisees = new Set(this.affectations.map(a => a.salle)).size;
         
         const stats = [
@@ -1035,185 +1050,85 @@ class ApplicationAffectation {
         this.showModal('excelConfigModal');
     }
 
-   genererExcel() {
-    const university = document.getElementById('universityName').value.trim();
-    const faculty = document.getElementById('facultyName').value.trim();
-    const facultyy = document.getElementById('faculty').value.trim();
-    const academicYear = document.getElementById('academicYear').value.trim();
-    const ecole = document.getElementById('ecoleName').value.trim();
+    genererExcel() {
+        const university = document.getElementById('universityName').value.trim();
+        const faculty = document.getElementById('facultyName').value.trim();
+        const facultyy = document.getElementById('faculty').value.trim();
+        const academicYear = document.getElementById('academicYear').value.trim();
+        const ecole = document.getElementById('ecoleName').value.trim();
 
-    if (!university || !faculty || !academicYear || !ecole) {
-        Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
-        return;
-    }
-
-    try {
-        const wb = XLSX.utils.book_new();
-        const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
-
-        /* =========================
-           FEUILLE PRINCIPALE : الجدول العام
-        ========================= */
-        const data = [];
-        data.push([`الوزارة : ${facultyy}`]);
-        data.push([`المديرية: ${university}`]);
-        data.push([`الأكادمية: ${faculty}`]);
-        data.push([`المؤسسة: ${ecole}`]);
-        data.push([ `السنة الدراسية : ${academicYear}`]);
-        data.push([`نوع الامتحان : ${this.type_examen}`]);
-        data.push([]); // Ligne vide
-       
-        // En-tête du tableau
-        const header = ['المادة', 'تاريخ ووقت الامتحان', 'القاعة'];
-        for (let i = 1; i <= nbrProfsSalle; i++) {
-            header.push(`الأستاذ ${i}`);
-        }
-        data.push(header);
-
-        // Grouper les affectations par matière et salle
-        const grouped = {};
-        this.affectations.forEach(a => {
-            const key = `${a.matiere}_${a.salle}`;
-            if (!grouped[key]) {
-                grouped[key] = {
-                    matiere: a.matiere,
-                    salle: a.salle,
-                    date: a.date_heure,
-                    profs: []
-                };
-            }
-            grouped[key].profs.push(a.professeur);
-        });
-
-        // Ajouter les données au tableau
-        Object.values(grouped).forEach(item => {
-            const row = [item.matiere, item.date, item.salle];
-            for (let i = 0; i < nbrProfsSalle; i++) {
-                row.push(item.profs[i] || '');
-            }
-            data.push(row);
-        });
-
-        // Créer la feuille
-        const wsGlobal = XLSX.utils.aoa_to_sheet(data);
-
-        /* =========================
-           STYLES RTL POUR FEUILLE GLOBALE
-        ========================= */
-        wsGlobal['!rtl'] = true;
-
-        const range = XLSX.utils.decode_range(wsGlobal['!ref']);
-
-        for (let R = range.s.r; R <= range.e.r; R++) {
-            for (let C = range.s.c; C <= range.e.c; C++) {
-                const ref = XLSX.utils.encode_cell({ r: R, c: C });
-                if (!wsGlobal[ref]) continue;
-
-                wsGlobal[ref].s = {
-                    alignment: {
-                        horizontal: 'center',
-                        vertical: 'center',
-                        readingOrder: 'rtl'
-                    },
-                    font: {
-                        name: 'Arial',
-                        sz: R <= 4 ? 14 : 11, // Lignes 0-4: titre (taille 14), autres: taille 11
-                        bold: R === 6 || R <= 4 // Ligne 6: en-tête, ou lignes 0-4: titre
-                    },
-                    fill: R === 6 ? {
-                        fgColor: { rgb: "D9E1F2" } // Couleur d'en-tête
-                    } : R <= 4 ? {
-                        fgColor: { rgb: "BDD7EE" } // Couleur de titre
-                    } : undefined,
-                    border: {
-                        top: { style: "thin", color: { rgb: "000000" } },
-                        bottom: { style: "thin", color: { rgb: "000000" } },
-                        left: { style: "thin", color: { rgb: "000000" } },
-                        right: { style: "thin", color: { rgb: "000000" } }
-                    }
-                };
-            }
+        if (!university || !faculty || !academicYear || !ecole) {
+            Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
+            return;
         }
 
-        /* =========================
-           LARGEUR DES COLONNES
-        ========================= */
-        wsGlobal['!cols'] = [
-            { wch: 25 }, // المادة
-            { wch: 25 }, // تاريخ ووقت الامتحان
-            { wch: 15 }, // القاعة
-            ...Array(nbrProfsSalle).fill({ wch: 25 }) // الأساتذة
-        ];
+        try {
+            const wb = XLSX.utils.book_new();
+            const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
 
-        XLSX.utils.book_append_sheet(wb, wsGlobal, 'الجدول العام');
-
-        /* =========================
-           FEUILLES PAR MATIÈRE
-        ========================= */
-        // Grouper les affectations par matière
-        const matieresGroup = {};
-        this.affectations.forEach(a => {
-            if (!matieresGroup[a.matiere]) {
-                matieresGroup[a.matiere] = [];
-            }
-            matieresGroup[a.matiere].push(a);
-        });
-
-        for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
-            const dataMatiere = [];
+            /* =========================
+               FEUILLE PRINCIPALE : الجدول العام
+            ========================= */
+            const data = [];
+            data.push([`الوزارة : ${facultyy}`]);
+            data.push([`المديرية: ${university}`]);
+            data.push([`الأكادمية: ${faculty}`]);
+            data.push([`المؤسسة: ${ecole}`]);
+            data.push([ `السنة الدراسية : ${academicYear}`]);
+            data.push([`نوع الامتحان : ${this.type_examen}`]);
+            data.push([]); // Ligne vide
             
-            // En-tête pour chaque matière
-            dataMatiere.push([`المديرية : ${university}`]);
-            dataMatiere.push([`الأكادمية: ${faculty}`]);
-            dataMatiere.push([`الوزارة: ${facultyy}`]);
-            dataMatiere.push([`المؤسسة : ${ecole}`]);
-            dataMatiere.push([`السنة الدراسية : ${academicYear}`]);
-            dataMatiere.push([`نوع الامتحان : ${this.type_examen}`]);
-            dataMatiere.push([`المادة : ${matiere}`]);
-            dataMatiere.push([]); // Ligne vide
-
-            // En-tête du tableau pour cette matière
-            const headerMatiere = ['تاريخ ووقت الامتحان', 'القاعة'];
-            for (let i = 1; i <= nbrProfsSalle; i++) {
-                headerMatiere.push(`الأستاذ ${i}`);
+            // En-tête du tableau (de droite à gauche)
+            const header = ['المادة', 'تاريخ ووقت الامتحان', 'القاعة'];
+            // Ajouter les colonnes des professeurs de droite à gauche
+            for (let i = nbrProfsSalle; i >= 1; i--) {
+                header.push(`الأستاذ ${i}`);
             }
-            dataMatiere.push(headerMatiere);
+            data.push(header);
 
-            // Grouper par salle pour cette matière
-            const groupedBySalle = {};
-            affectationsMatiere.forEach(a => {
-                if (!groupedBySalle[a.salle]) {
-                    groupedBySalle[a.salle] = {
+            // Grouper les affectations par matière et salle
+            const grouped = {};
+            this.affectations.forEach(a => {
+                const key = `${a.matiere}_${a.salle}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        matiere: a.matiere,
                         salle: a.salle,
                         date: a.date_heure,
                         profs: []
                     };
                 }
-                groupedBySalle[a.salle].profs.push(a.professeur);
+                grouped[key].profs.push(a.professeur);
             });
 
-            // Ajouter les données
-            Object.values(groupedBySalle).forEach(item => {
-                const row = [item.date, item.salle];
-                for (let i = 0; i < nbrProfsSalle; i++) {
+            // Ajouter les données au tableau
+            Object.values(grouped).forEach(item => {
+                const row = [item.matiere, item.date, item.salle];
+                
+                // Ajouter les professeurs dans l'ordre inverse (de droite à gauche)
+                for (let i = nbrProfsSalle - 1; i >= 0; i--) {
                     row.push(item.profs[i] || '');
                 }
-                dataMatiere.push(row);
+                
+                data.push(row);
             });
 
-            // Créer la feuille pour cette matière
-            const wsMatiere = XLSX.utils.aoa_to_sheet(dataMatiere);
+            // Créer la feuille
+            const wsGlobal = XLSX.utils.aoa_to_sheet(data);
 
-            // Appliquer les mêmes styles RTL
-            wsMatiere['!rtl'] = true;
-            const rangeMatiere = XLSX.utils.decode_range(wsMatiere['!ref']);
+            /* =========================
+               STYLES RTL POUR FEUILLE GLOBALE
+            ========================= */
+            wsGlobal['!rtl'] = true;
 
-            for (let R = rangeMatiere.s.r; R <= rangeMatiere.e.r; R++) {
-                for (let C = rangeMatiere.s.c; C <= rangeMatiere.e.c; C++) {
+            const range = XLSX.utils.decode_range(wsGlobal['!ref']);
+
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = range.s.c; C <= range.e.c; C++) {
                     const ref = XLSX.utils.encode_cell({ r: R, c: C });
-                    if (!wsMatiere[ref]) continue;
+                    if (!wsGlobal[ref]) continue;
 
-                    wsMatiere[ref].s = {
+                    wsGlobal[ref].s = {
                         alignment: {
                             horizontal: 'center',
                             vertical: 'center',
@@ -1221,13 +1136,13 @@ class ApplicationAffectation {
                         },
                         font: {
                             name: 'Arial',
-                            sz: R <= 5 ? 14 : 11,
-                            bold: R === 7 || R <= 5
+                            sz: R <= 6 ? 14 : 11, // Lignes 0-6: titre (taille 14), autres: taille 11
+                            bold: R === 7 // Ligne 7: en-tête
                         },
                         fill: R === 7 ? {
-                            fgColor: { rgb: "E2EFDA" } // Vert clair pour en-tête matière
-                        } : R <= 5 ? {
-                            fgColor: { rgb: "FCE4D6" } // Couleur différente pour titre matière
+                            fgColor: { rgb: "D9E1F2" } // Couleur d'en-tête
+                        } : R <= 6 ? {
+                            fgColor: { rgb: "BDD7EE" } // Couleur de titre
                         } : undefined,
                         border: {
                             top: { style: "thin", color: { rgb: "000000" } },
@@ -1239,31 +1154,155 @@ class ApplicationAffectation {
                 }
             }
 
-            // Largeur des colonnes pour feuille matière
-            wsMatiere['!cols'] = [
-                { wch: 25 }, // تاريخ ووقت الامتحان
-                { wch: 15 }, // القاعة
-                ...Array(nbrProfsSalle).fill({ wch: 25 }) // الأساتذة
-            ];
+            /* =========================
+               LARGEUR DES COLONNES (de droite à gauche)
+               Ordre: الأساتذة, القاعة, تاريخ ووقت الامتحان, المادة
+            ========================= */
+            const colWidths = [];
+            
+            // Ajouter les colonnes pour chaque professeur (de droite à gauche)
+            for (let i = 0; i < nbrProfsSalle; i++) {
+                colWidths.push({ wch: 25 }); // الأستاذ
+            }
+            
+            // Ajouter les autres colonnes
+            colWidths.push({ wch: 15 });  // القاعة
+            colWidths.push({ wch: 25 });  // تاريخ ووقت الامتحان
+            colWidths.push({ wch: 25 });  // المادة
+            
+            wsGlobal['!cols'] = colWidths;
 
-            // Nom de la feuille (limité à 31 caractères)
-            const sheetName = matiere.substring(0, 31);
-            XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+            XLSX.utils.book_append_sheet(wb, wsGlobal, 'الجدول العام');
+
+            /* =========================
+               FEUILLES PAR MATIÈRE
+            ========================= */
+            // Grouper les affectations par matière
+            const matieresGroup = {};
+            this.affectations.forEach(a => {
+                if (!matieresGroup[a.matiere]) {
+                    matieresGroup[a.matiere] = [];
+                }
+                matieresGroup[a.matiere].push(a);
+            });
+
+            for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
+                const dataMatiere = [];
+                
+                // En-tête pour chaque matière
+                dataMatiere.push([`المديرية : ${university}`]);
+                dataMatiere.push([`الأكادمية: ${faculty}`]);
+                dataMatiere.push([`الوزارة: ${facultyy}`]);
+                dataMatiere.push([`المؤسسة : ${ecole}`]);
+                dataMatiere.push([`السنة الدراسية : ${academicYear}`]);
+                dataMatiere.push([`نوع الامتحان : ${this.type_examen}`]);
+                dataMatiere.push([`المادة : ${matiere}`]);
+                dataMatiere.push([]); // Ligne vide
+
+                // En-tête du tableau pour cette matière (de droite à gauche)
+                const headerMatiere = ['القاعة', 'تاريخ ووقت الامتحان'];
+                // Ajouter les colonnes des professeurs de droite à gauche
+                for (let i = nbrProfsSalle; i >= 1; i--) {
+                    headerMatiere.push(`الأستاذ ${i}`);
+                }
+                dataMatiere.push(headerMatiere);
+
+                // Grouper par salle pour cette matière
+                const groupedBySalle = {};
+                affectationsMatiere.forEach(a => {
+                    if (!groupedBySalle[a.salle]) {
+                        groupedBySalle[a.salle] = {
+                            salle: a.salle,
+                            date: a.date_heure,
+                            profs: []
+                        };
+                    }
+                    groupedBySalle[a.salle].profs.push(a.professeur);
+                });
+
+                // Ajouter les données
+                Object.values(groupedBySalle).forEach(item => {
+                    const row = [item.salle, item.date];
+                    
+                    // Ajouter les professeurs dans l'ordre inverse (de droite à gauche)
+                    for (let i = nbrProfsSalle - 1; i >= 0; i--) {
+                        row.push(item.profs[i] || '');
+                    }
+                    
+                    dataMatiere.push(row);
+                });
+
+                // Créer la feuille pour cette matière
+                const wsMatiere = XLSX.utils.aoa_to_sheet(dataMatiere);
+
+                // Appliquer les mêmes styles RTL
+                wsMatiere['!rtl'] = true;
+                const rangeMatiere = XLSX.utils.decode_range(wsMatiere['!ref']);
+
+                for (let R = rangeMatiere.s.r; R <= rangeMatiere.e.r; R++) {
+                    for (let C = rangeMatiere.s.c; C <= rangeMatiere.e.c; C++) {
+                        const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!wsMatiere[ref]) continue;
+
+                        wsMatiere[ref].s = {
+                            alignment: {
+                                horizontal: 'center',
+                                vertical: 'center',
+                                readingOrder: 'rtl'
+                            },
+                            font: {
+                                name: 'Arial',
+                                sz: R <= 6 ? 14 : 11,
+                                bold: R === 7
+                            },
+                            fill: R === 7 ? {
+                                fgColor: { rgb: "E2EFDA" } // Vert clair pour en-tête matière
+                            } : R <= 6 ? {
+                                fgColor: { rgb: "FCE4D6" } // Couleur différente pour titre matière
+                            } : undefined,
+                            border: {
+                                top: { style: "thin", color: { rgb: "000000" } },
+                                bottom: { style: "thin", color: { rgb: "000000" } },
+                                left: { style: "thin", color: { rgb: "000000" } },
+                                right: { style: "thin", color: { rgb: "000000" } }
+                            }
+                        };
+                    }
+                }
+
+                // Largeur des colonnes pour feuille matière (de droite à gauche)
+                const colWidthsMatiere = [];
+                
+                // Ajouter les colonnes pour chaque professeur (de droite à gauche)
+                for (let i = 0; i < nbrProfsSalle; i++) {
+                    colWidthsMatiere.push({ wch: 25 }); // الأستاذ
+                }
+                
+                // Ajouter les autres colonnes
+                colWidthsMatiere.push({ wch: 25 }); // تاريخ ووقت الامتحان
+                colWidthsMatiere.push({ wch: 15 }); // القاعة
+                
+                wsMatiere['!cols'] = colWidthsMatiere;
+
+                // Nom de la feuille (limité à 31 caractères)
+                const sheetName = matiere.substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+            }
+
+            /* =========================
+               SAUVEGARDE DU FICHIER
+            ========================= */
+            const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            this.closeModal('excelConfigModal');
+            Swal.fire('نجاح', `تم إنشاء ملف Excel بنجاح: ${fileName}`, 'success');
+
+        } catch (e) {
+            Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
         }
-
-        /* =========================
-           SAUVEGARDE DU FICHIER
-        ========================= */
-        const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-
-        this.closeModal('excelConfigModal');
-        Swal.fire('نجاح', `تم إنشاء ملف Excel بنجاح: ${fileName}`, 'success');
-
-    } catch (e) {
-        Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
     }
-}
+
     // ========== STATISTIQUES ==========
 
     updateStats() {
