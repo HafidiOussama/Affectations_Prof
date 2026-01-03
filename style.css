@@ -721,3 +721,147 @@ body {
         padding: 8px 10px;
     }
 }
+
+/* Styles pour la section des non-affectés */
+.matiere-header-row {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+
+.matiere-header-row td {
+    padding: 12px 15px;
+    border-bottom: 2px solid var(--light-text);
+}
+
+.non-affecte-row:hover {
+    background-color: rgba(250, 82, 82, 0.1);
+}
+
+.non-affecte-row td {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.non-affecte-row td:first-child {
+    color: var(--muted-text);
+    font-style: italic;
+}
+
+.summary-row {
+    background-color: var(--dark-bg);
+}
+
+.summary-row td {
+    padding: 15px;
+    font-size: 1.1rem;
+}
+
+/* Animation pour l'apparition de la section */
+#nonAffectesSection {
+    animation: slideInUp 0.5s ease;
+    margin-top: 30px;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Badge pour les non-affectés */
+.status-badge.status-unavailable {
+    background-color: rgba(250, 82, 82, 0.2);
+    color: #fa5252;
+}
+
+/* Style pour les lignes alternées */
+.non-affecte-row:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Style pour les statistiques avec icône "user-times" */
+.stat-card .fa-user-times {
+    color: #fa5252;
+}
+/* Styles pour la section des non-affectés */
+#nonAffectesSection {
+    margin-top: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+#nonAffectesSection .card-header {
+    background: rgba(0,0,0,0.2);
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+}
+
+#nonAffectesSection .card-header h2 {
+    color: white;
+    font-size: 20px;
+}
+
+#nonAffectesSection .card-header h2 i {
+    color: #ffcc00;
+}
+
+/* Styles pour les lignes de matière */
+.matiere-header-row {
+    background: linear-gradient(90deg, #2a2a3c, #3a3a5c);
+    color: white;
+    font-weight: bold;
+    text-align: center;
+}
+
+.matiere-header-row td {
+    padding: 15px !important;
+    font-size: 16px;
+    border-bottom: 3px solid #667eea;
+}
+
+/* Styles pour les lignes des non-affectés */
+.non-affecte-row {
+    background: rgba(255,255,255,0.05);
+    transition: all 0.3s ease;
+}
+
+.non-affecte-row:hover {
+    background: rgba(255,255,255,0.1);
+    transform: translateX(5px);
+}
+
+.non-affecte-row td {
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: #e0e0e0;
+}
+
+.non-affecte-row td:first-child {
+    text-align: center;
+    color: #339af0;
+    font-weight: bold;
+}
+
+/* Ligne de résumé */
+.summary-row {
+    background: linear-gradient(90deg, #495057, #6c757d);
+}
+
+.summary-row td {
+    padding: 15px;
+    font-size: 16px;
+    color: white;
+    text-align: center;
+    font-weight: bold;
+}
+
+.summary-row i {
+    color: #ffcc00;
+    margin-left: 10px;
+}

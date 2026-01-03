@@ -167,7 +167,7 @@
                     <button class="btn btn-warning" id="editProfessorBtn">
                         <i class="fas fa-edit"></i> تعديل أستاذ
                     </button>
-                    <button class="btn btn-warning" id="deleteProfessorBtn">
+                    <button class="btn btn-danger" id="deleteProfessorBtn">
                         <i class="fas fa-trash"></i> حذف أستاذ
                     </button>
                     <button class="btn btn-primary" id="manageUnavailabilityBtn">
@@ -175,6 +175,9 @@
                     </button>
                     <button class="btn btn-success" id="extractSubjectsBtn">
                         <i class="fas fa-book"></i> استخراج المواد
+                    </button>
+                    <button class="btn btn-danger" id="deleteUnavailabilityBtn">
+                        <i class="fas fa-calendar-times"></i> حذف عدم التوفر
                     </button>
                 </div>
                 
@@ -359,7 +362,7 @@
         </div>
     </div>
 
-    <!-- Modal Gérer Indisponibilités -->
+    <!-- Modal Gérer Indisponibilités (style original préservé) -->
     <div id="unavailabilityModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -453,7 +456,6 @@
         </div>
         <div class="modal-body">
             <form id="excelConfigForm">
-
                 <div class="form-group">
                     <label>الوزارة</label>
                     <input type="text" id="faculty" class="form-control" required>
@@ -474,7 +476,6 @@
                     <label>السنة الدراسية </label>
                     <input type="text" id="academicYear" class="form-control" required>
                 </div>
-                
             </form>
         </div>
         <div class="modal-footer">
