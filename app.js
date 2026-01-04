@@ -39,6 +39,8 @@ class ApplicationAffectation {
         document.getElementById('addProfessorBtn').addEventListener('click', () => this.showProfessorModal());
         document.getElementById('editProfessorBtn').addEventListener('click', () => this.modifierProfesseur());
         document.getElementById('deleteProfessorBtn').addEventListener('click', () => this.supprimerProfesseur());
+        // AJOUT: Bouton pour supprimer tous les professeurs importés
+        document.getElementById('deleteAllProfessorsBtn').addEventListener('click', () => this.supprimerTousLesProfesseurs());
         document.getElementById('manageUnavailabilityBtn').addEventListener('click', () => this.gererIndisponibilites());
         document.getElementById('deleteUnavailabilityBtn').addEventListener('click', () => this.supprimerIndisponibilite());
         document.getElementById('extractSubjectsBtn').addEventListener('click', () => this.extraireMatieres());
@@ -139,7 +141,12 @@ class ApplicationAffectation {
     }
 
     updateStatus(message) {
-        document.getElementById('statusMessage').textContent = message;
+        const statusElement = document.getElementById('statusMessage');
+        if (statusElement) {
+            statusElement.textContent = message;
+        } else {
+            console.log("Status: " + message);
+        }
     }
 
     // ========== GESTION DES DONNÉES ==========
@@ -292,6 +299,81 @@ class ApplicationAffectation {
                 this.selectedProfessorIndex = null;
                 
                 Swal.fire('نجاح', 'تم حذف الأستاذ بنجاح', 'success');
+            }
+        });
+    }
+
+    // AJOUT: Méthode pour supprimer tous les professeurs
+    supprimerTousLesProfesseurs() {
+        if (this.professeurs.length === 0) {
+            Swal.fire('تنبيه', 'لا يوجد أساتذة في القائمة', 'info');
+            return;
+        }
+        
+        Swal.fire({
+            title: 'تأكيد الحذف الكامل',
+            html: `
+                <div style="text-align: right; margin: 20px 0;">
+                    <p>هل أنت متأكد من حذف جميع الأساتذة؟</p>
+                    <p style="color: #d33; font-weight: bold; margin-top: 10px;">
+                        ⚠️ سيتم حذف ${this.professeurs.length} أستاذ من القائمة!
+                    </p>
+                    <p style="margin-top: 15px; color: #666;">
+                        <i class="fas fa-info-circle"></i>
+                        هذه العملية لا يمكن التراجع عنها. سيتم حذف جميع الأساتذة، سواء تم استيرادهم من ملف Excel أو إضافتهم يدوياً.
+                    </p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، احذف الكل',
+            cancelButtonText: 'إلغاء',
+            confirmButtonColor: '#d33',
+            focusCancel: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Sauvegarder le nombre de professeurs pour le message
+                const count = this.professeurs.length;
+                
+                // Vider la liste des professeurs
+                this.professeurs = [];
+                
+                // Réinitialiser les affectations
+                this.affectations = [];
+                
+                // Mettre à jour l'affichage
+                this.afficherProfesseurs();
+                this.updateStats();
+                this.saveToLocalStorage();
+                
+                // Réinitialiser la sélection
+                this.selectedProfessorIndex = null;
+                
+                // Mettre à jour le tableau des affectations s'il existe
+                const assignmentsTable = document.getElementById('assignmentsTableBody');
+                if (assignmentsTable) {
+                    assignmentsTable.innerHTML = '';
+                }
+                
+                // Mettre à jour les statistiques des affectations
+                const statsContainer = document.getElementById('assignmentsStats');
+                if (statsContainer) {
+                    statsContainer.innerHTML = '';
+                }
+                
+                // Supprimer la section des non-affectés si elle existe
+                const nonAffectesSection = document.getElementById('nonAffectesSection');
+                if (nonAffectesSection) {
+                    nonAffectesSection.remove();
+                }
+                
+                Swal.fire({
+                    title: 'نجاح',
+                    text: `تم حذف جميع الأساتذة (${count} أستاذ) بنجاح`,
+                    icon: 'success',
+                    timer: 3000,
+                    showConfirmButton: true
+                });
             }
         });
     }
@@ -461,7 +543,7 @@ class ApplicationAffectation {
                     }
                     
                     // Traiter les données (sans l'en-tête)
-                    this.professeurs = [];
+                    const nouveauxProfs = [];
                     for (let i = 1; i < jsonData.length; i++) {
                         const row = jsonData[i];
                         if (!row || row.length === 0) continue;
@@ -470,7 +552,7 @@ class ApplicationAffectation {
                         const matiere = String(row[matiereIndex] || '').trim();
                         
                         if (nom && matiere) {
-                            this.professeurs.push({
+                            nouveauxProfs.push({
                                 nom: nom,
                                 matiere: matiere,
                                 numero: '',
@@ -479,23 +561,50 @@ class ApplicationAffectation {
                         }
                     }
                     
-                    this.afficherProfesseurs();
-                    this.updateStats();
-                    this.saveToLocalStorage();
-                    
-                    // Extraire et afficher les matières
-                    const matieres = this.obtenirListeMatieres();
-                    let message = `تم استيراد ${this.professeurs.length} أستاذ بنجاح!`;
-                    
-                    if (matieres.length > 0) {
-                        message += `\n\n📚 تم اكتشاف ${matieres.length} مادة:`;
-                        matieres.slice(0, 5).forEach(([matiere, count]) => {
-                            message += `\n• ${matiere} (${count} أستاذ)`;
+                    // Demander à l'utilisateur s'il veut ajouter ou remplacer
+                    if (this.professeurs.length > 0) {
+                        Swal.fire({
+                            title: 'خيارات الاستيراد',
+                            html: `
+                                <div style="text-align: right; margin: 20px 0;">
+                                    <p>تم العثور على ${nouveauxProfs.length} أستاذ في الملف.</p>
+                                    <p>اختر طريقة الاستيراد:</p>
+                                    <div style="margin-top: 20px;">
+                                        <button id="ajouterBtn" class="swal2-confirm swal2-styled" 
+                                                style="background-color: #28a745; margin: 5px; width: 200px;">
+                                            <i class="fas fa-plus"></i> إضافة إلى القائمة الحالية
+                                        </button>
+                                        <br>
+                                        <button id="remplacerBtn" class="swal2-confirm swal2-styled" 
+                                                style="background-color: #dc3545; margin: 5px; width: 200px;">
+                                            <i class="fas fa-sync-alt"></i> استبدال القائمة الحالية
+                                        </button>
+                                    </div>
+                                </div>
+                            `,
+                            showCancelButton: true,
+                            cancelButtonText: 'إلغاء',
+                            showConfirmButton: false,
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                document.getElementById('ajouterBtn').addEventListener('click', () => {
+                                    this.professeurs.push(...nouveauxProfs);
+                                    this.finaliserImportExcel(nouveauxProfs.length, 'إضافة');
+                                    Swal.close();
+                                });
+                                
+                                document.getElementById('remplacerBtn').addEventListener('click', () => {
+                                    this.professeurs = nouveauxProfs;
+                                    this.finaliserImportExcel(nouveauxProfs.length, 'استبدال');
+                                    Swal.close();
+                                });
+                            }
                         });
-                        if (matieres.length > 5) message += '\n...';
+                    } else {
+                        // Si la liste est vide, ajouter directement
+                        this.professeurs = nouveauxProfs;
+                        this.finaliserImportExcel(nouveauxProfs.length, 'إضافة');
                     }
-                    
-                    Swal.fire('نجاح', message, 'success');
                     
                 } catch (error) {
                     console.error('Error reading file:', error);
@@ -507,6 +616,26 @@ class ApplicationAffectation {
         };
         
         input.click();
+    }
+
+    finaliserImportExcel(count, operation) {
+        this.afficherProfesseurs();
+        this.updateStats();
+        this.saveToLocalStorage();
+        
+        // Extraire et afficher les matières
+        const matieres = this.obtenirListeMatieres();
+        let message = `تم ${operation} ${count} أستاذ بنجاح!`;
+        
+        if (matieres.length > 0) {
+            message += `\n\n📚 تم اكتشاف ${matieres.length} مادة:`;
+            matieres.slice(0, 5).forEach(([matiere, count]) => {
+                message += `\n• ${matiere} (${count} أستاذ)`;
+            });
+            if (matieres.length > 5) message += '\n...';
+        }
+        
+        Swal.fire('نجاح', message, 'success');
     }
 
     // ========== GESTION DES MATIÈRES ==========
@@ -609,9 +738,12 @@ class ApplicationAffectation {
         }
         
         const matieresArray = Array.from(this.selectedSubjects);
+        
         Swal.fire({
             title: 'تأكيد الحذف',
-            html: `هل أنت متأكد من حذف ${matieresArray.length} مادة؟<br><br>${matieresArray.map(m => `• ${m}`).join('<br>')}`,
+            html: `هل أنت متأكد من حذف ${matieresArray.length} مادة من قائمة المواد فقط؟<br><br>
+                   <strong>ملاحظة:</strong> لن يتم حذف هذه المواد من قائمة الأساتذة.<br><br>
+                   ${matieresArray.map(m => `• ${m}`).join('<br>')}`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'نعم، احذف',
@@ -619,20 +751,23 @@ class ApplicationAffectation {
             confirmButtonColor: '#d33'
         }).then((result) => {
             if (result.isConfirmed) {
-                let count = 0;
-                this.professeurs.forEach(prof => {
-                    const profMatiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
-                    if (matieresArray.includes(profMatiere)) {
-                        prof.matiere = '';
-                        count++;
-                    }
-                });
+                // Filtrer les matières - supprimer uniquement de la liste this.matieres
+                const matieresASupprimer = new Set(matieresArray);
                 
-                this.afficherProfesseurs();
+                // Conserver seulement les matières qui ne sont pas dans la liste des matières à supprimer
+                this.matieres = this.matieres.filter(matiere => 
+                    !matieresASupprimer.has(matiere.nom)
+                );
+                
+                // Mettre à jour le formulaire
+                document.getElementById('subjectCount').value = this.matieres.length;
+                this.genererFormulaireMatieres();
+                this.remplirFormulaireMatieres();
+                
                 this.saveToLocalStorage();
                 this.closeModal('subjectsExtractModal');
                 
-                Swal.fire('نجاح', `تم حذف ${count} مادة بنجاح`, 'success');
+                Swal.fire('نجاح', `تم حذف ${matieresArray.length} مادة من قائمة المواد فقط`, 'success');
             }
         });
     }
@@ -1262,15 +1397,12 @@ class ApplicationAffectation {
             return;
         }
         
-        document.getElementById('universityName').value = '';
-        document.getElementById('facultyName').value = '';
-        document.getElementById('faculty').value = '';
-        document.getElementById('academicYear').value = '';
-        document.getElementById('ecoleName').value = '';
+        // NE PAS réinitialiser les valeurs à vide
+        // Laisser les valeurs par défaut du HTML s'afficher
         
         this.showModal('excelConfigModal');
     }
-
+   
     genererExcel() {
         const university = document.getElementById('universityName').value.trim();
         const faculty = document.getElementById('facultyName').value.trim();

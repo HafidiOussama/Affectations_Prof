@@ -179,6 +179,10 @@
                     <button class="btn btn-danger" id="deleteUnavailabilityBtn">
                         <i class="fas fa-calendar-times"></i> حذف عدم التوفر
                     </button>
+                    <!-- Dans la section des boutons des professeurs (onglet الأساتذة) -->
+<button id="deleteAllProfessorsBtn" class="btn btn-danger">
+    <i class="fas fa-trash-alt"></i> حذف جميع الأساتذة
+</button>
                 </div>
                 
                 <div class="table-container">
@@ -458,23 +462,24 @@
             <form id="excelConfigForm">
                 <div class="form-group">
                     <label>الوزارة</label>
-                    <input type="text" id="faculty" class="form-control" required>
+                    <input type="text" id="faculty" class="form-control" value="وزارة التربية الوطنية والتعليم الأولي والرياضة" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>الأكادمية</label>
+                    <input type="text" id="facultyName" class="form-control" value="الأكاديمية الجهوية للتربية والتكوين لجهة الدار البيضاء سطات" required>
                 </div>
                 <div class="form-group">
                     <label>المديرية</label>
-                    <input type="text" id="universityName" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label>الأكادمية</label>
-                    <input type="text" id="facultyName" class="form-control" required>
+                    <input type="text" id="universityName" class="form-control" value="المديرية الإقليمية الجديدة" required>
                 </div>
                 <div class="form-group">
                     <label>المؤسسة</label>
-                    <input type="text" id="ecoleName" class="form-control" required>
+                    <input type="text" id="ecoleName" class="form-control" value="الثانوية الإعدادية المجاهد العياشي" required>
                 </div>
                 <div class="form-group">
                     <label>السنة الدراسية </label>
-                    <input type="text" id="academicYear" class="form-control" required>
+                    <input type="text" id="academicYear" class="form-control"  value="2025-2026" required>
                 </div>
             </form>
         </div>
