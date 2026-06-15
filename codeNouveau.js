@@ -941,52 +941,43 @@ class ApplicationAffectation {
     calculerAffectations(nbrProfsSalle, matieres) {
         const affectations = [];
         const historiqueProfs = {};
-        // Stocker les infos des matières pour le rapport post-calcul
-        this._matieresInfo = {};
-        matieres.forEach(m => {
-            this._matieresInfo[m.nom] = {
-                date: m.date,
-                periode: m.periode,
-                demiJournee: `${m.date}-${m.periode}`
-            };
-        });
-
+        
         matieres.forEach(matiere => {
             const demiJournee = `${matiere.date}-${matiere.periode}`;
             const dateHeure = `${matiere.date} ${matiere.heure_debut}-${matiere.heure_fin}`;
-
+            
             this.salles.forEach(salle => {
-                const profsAffectesASalle = [];
+                const profsAffectes = [];
                 const profsDisponibles = [...this.professeurs];
-
+                
                 for (let i = profsDisponibles.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [profsDisponibles[i], profsDisponibles[j]] = [profsDisponibles[j], profsDisponibles[i]];
                 }
-
+                
                 for (let i = 0; i < nbrProfsSalle; i++) {
                     let profTrouve = null;
-
+                    
                     for (const prof of profsDisponibles) {
-                        if (!profsAffectesASalle.includes(prof) &&
+                        if (!profsAffectes.includes(prof) && 
                             this.estProfesseurValide(prof, salle, demiJournee, matiere.nom, affectations, historiqueProfs)) {
                             profTrouve = prof;
                             break;
                         }
                     }
-
+                    
                     if (profTrouve) {
-                        profsAffectesASalle.push(profTrouve);
+                        profsAffectes.push(profTrouve);
                         const profId = profTrouve.nom;
-
+                        
                         if (!historiqueProfs[profId]) {
                             historiqueProfs[profId] = { salles: new Set(), matieres: new Set(), creneaux: new Set() };
                         }
-
+                        
                         historiqueProfs[profId].salles.add(salle);
                         historiqueProfs[profId].matieres.add(matiere.nom);
                         historiqueProfs[profId].creneaux.add(demiJournee);
-
+                        
                         affectations.push({
                             matiere: matiere.nom,
                             date_heure: dateHeure,
@@ -998,61 +989,7 @@ class ApplicationAffectation {
                 }
             });
         });
-
-        // ── Construire le rapport APRÈS que toutes les affectations sont finalisées ──
-        // Cela garantit que historiqueProfs est complet et cohérent.
-        this.rapportNonAffectes = {};
-
-        const pasPropreMatiere = document.getElementById('constraint1').checked;
-        const pasMemeSalle    = document.getElementById('constraint2').checked;
-        const pasMemeGroupe   = document.getElementById('constraint3').checked;
-
-        matieres.forEach(matiere => {
-            const demiJournee = `${matiere.date}-${matiere.periode}`;
-            const [date, periode] = [matiere.date, matiere.periode];
-
-            // Ensemble des profs effectivement affectés à cette matière (dédupliqué)
-            const profsAffectesSet = new Set(
-                affectations.filter(a => a.matiere === matiere.nom).map(a => a.professeur)
-            );
-
-            this.rapportNonAffectes[matiere.nom] = {};
-
-            this.professeurs.forEach(prof => {
-                if (profsAffectesSet.has(prof.nom)) {
-                    // Affecté — ne pas inclure dans le rapport des non-affectés
-                    return;
-                }
-
-                // Ce prof n'a PAS été affecté à cette matière — calculer pourquoi
-                const indispos = prof.indisponibilites || [];
-                const profMatiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
-                const hist = historiqueProfs[prof.nom];
-                const raisons = [];
-
-                if (indispos.some(([jour, p]) => jour === date && p === periode)) {
-                    raisons.push('غير متوفر في هذا اليوم/الفترة');
-                }
-                if (pasPropreMatiere && profMatiere === matiere.nom) {
-                    raisons.push('يدرّس هذه المادة (قيد 1)');
-                }
-                if (pasMemeGroupe && hist && hist.creneaux.has(demiJournee)) {
-                    raisons.push('موزع في نفس الفترة على مادة أخرى (قيد 3)');
-                }
-                if (pasMemeSalle && hist && hist.salles.size >= this.salles.length) {
-                    raisons.push('استنفد جميع القاعات (قيد 2)');
-                }
-                if (raisons.length === 0) {
-                    raisons.push('لم تتوفر خانة شاغرة مناسبة');
-                }
-
-                this.rapportNonAffectes[matiere.nom][prof.nom] = {
-                    prof,
-                    raison: raisons.join(' | ')
-                };
-            });
-        });
-
+        
         return affectations;
     }
 
@@ -1279,356 +1216,329 @@ class ApplicationAffectation {
      * OR more broadly: any professor who does not appear in the assignments for that subject.
      * We use the broader definition: all profs whose name doesn't appear in affectations for this matiere.
      */
-    /**
-     * Retourne la liste des profs NON affectés à une matière donnée, avec raison.
-     * Garantit : affectés (dédupliqués) + non-affectés = total profs.
-     */
     obtenirProfsNonAffectesParMatiere(nomMatiere) {
-        // Cas nominal : rapport disponible (généré dans la même session)
-        if (this.rapportNonAffectes && this.rapportNonAffectes[nomMatiere]) {
-            return Object.values(this.rapportNonAffectes[nomMatiere])
-                .map(e => ({ ...e.prof, raison: e.raison }));
-        }
-
-        // Fallback (données rechargées depuis localStorage, rapport absent)
+        // Set of professor names that were assigned to this subject
         const profsAffectesMatiere = new Set(
-            this.affectations.filter(a => a.matiere === nomMatiere).map(a => a.professeur)
+            this.affectations
+                .filter(a => a.matiere === nomMatiere)
+                .map(a => a.professeur)
         );
-        return this.professeurs
-            .filter(prof => !profsAffectesMatiere.has(prof.nom))
-            .map(prof => ({ ...prof, raison: 'غير محدد (بيانات مخزنة)' }));
-    }
 
-   genererExcel() {
-    const university = document.getElementById('universityName').value.trim();
-    const faculty    = document.getElementById('facultyName').value.trim();
-    const ministere  = document.getElementById('faculty').value.trim();
-    const academicYear = document.getElementById('academicYear').value.trim();
-    const ecole      = document.getElementById('ecoleName').value.trim();
-
-    if (!university || !faculty || !academicYear || !ecole) {
-        Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
-        return;
-    }
-
-    try {
-        const wb = XLSX.utils.book_new();
-        const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
-
-        // ═══════════════════════════════════════════════════════════
-        // PALETTE DE COULEURS
-        // ═══════════════════════════════════════════════════════════
-        const CLR = {
-            INST_BG:   '1F3864',
-            INST_FG:   'FFFFFF',
-            TITLE_BG:  '2E75B6',
-            TITLE_FG:  'FFFFFF',
-            COL_BG:    '2E75B6',
-            COL_FG:    'FFFFFF',
-            ROW_EVEN:  'DEEAF1',
-            ROW_ODD:   'FFFFFF',
-            NA_TITLE_BG: 'C55A11',
-            NA_TITLE_FG: 'FFFFFF',
-            NA_COL_BG:  'F4B942',
-            NA_COL_FG:  '000000',
-            NA_ROW_EVEN: 'FFF2CC',
-            NA_ROW_ODD:  'FFFFFF',
-            TOTAL_BG:   '1F3864',
-            TOTAL_FG:   'FFFFFF',
-            OK_BG:      '70AD47',
-            OK_FG:      'FFFFFF',
-            BORDER_DARK: '1F3864',
-            BORDER_MED:  '2E75B6',
-            BORDER_LIGHT:'BDD7EE',
-        };
-
-        const S = ({
-            bg = null, fg = '000000', sz = 11, bold = false,
-            italic = false, halign = 'center', valign = 'center',
-            wrapText = true, borderType = 'all', borderColor = null,
-            topBorderStyle = 'thin', bottomBorderStyle = 'thin'
-        } = {}) => {
-            const bc = borderColor || CLR.BORDER_LIGHT;
-            const border = {};
-            if (borderType === 'all' || borderType === 'outer') {
-                const mk = (style, color) => ({ style, color: { rgb: color } });
-                border.top    = mk(topBorderStyle,    bc);
-                border.bottom = mk(bottomBorderStyle, bc);
-                border.left   = mk('thin', bc);
-                border.right  = mk('thin', bc);
-            }
-            const s = {
-                font: { name: 'Arial', sz, bold, italic, color: { rgb: fg } },
-                alignment: { horizontal: halign, vertical: valign,
-                             readingOrder: 2, wrapText },
-                border
-            };
-            if (bg) s.fill = { patternType: 'solid', fgColor: { rgb: bg } };
-            return s;
-        };
-
-        const merge = (ws, r1, c1, r2, c2, value, style) => {
-            if (!ws['!merges']) ws['!merges'] = [];
-            ws['!merges'].push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
-            for (let R = r1; R <= r2; R++) {
-                for (let C = c1; C <= c2; C++) {
-                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-                    if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
-                    ws[cellRef].s = style;
-                }
-            }
-            const ref = XLSX.utils.encode_cell({ r: r1, c: c1 });
-            ws[ref] = { v: value, t: 's', s: style };
-        };
-
-        const setRowHeights = (ws, heights) => {
-            if (!ws['!rows']) ws['!rows'] = [];
-            heights.forEach(([r, h]) => {
-                while (ws['!rows'].length <= r) ws['!rows'].push({});
-                ws['!rows'][r] = { hpt: h };
-            });
-        };
-
-        const ST = {
-            inst:     S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 11, bold: false, borderColor: CLR.BORDER_DARK }),
-            instBold: S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 13, bold: true,  borderColor: CLR.BORDER_DARK }),
-            title:    S({ bg: CLR.TITLE_BG,    fg: CLR.TITLE_FG,    sz: 14, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            colHead:  S({ bg: CLR.COL_BG,      fg: CLR.COL_FG,      sz: 11, bold: true,  borderColor: CLR.BORDER_MED }),
-            rowEven:  S({ bg: CLR.ROW_EVEN,    fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
-            rowOdd:   S({ bg: CLR.ROW_ODD,     fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
-            naTitle:  S({ bg: CLR.NA_TITLE_BG, fg: CLR.NA_TITLE_FG, sz: 12, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            naColHead:S({ bg: CLR.NA_COL_BG,   fg: CLR.NA_COL_FG,   sz: 11, bold: true,  borderColor: '000000' }),
-            naEven:   S({ bg: CLR.NA_ROW_EVEN, fg: '000000',        sz: 10, borderColor: '999999' }),
-            naOdd:    S({ bg: CLR.NA_ROW_ODD,  fg: '000000',        sz: 10, borderColor: '999999' }),
-            total:    S({ bg: CLR.TOTAL_BG,    fg: CLR.TOTAL_FG,    sz: 11, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            ok:       S({ bg: CLR.OK_BG,       fg: CLR.OK_FG,       sz: 11, bold: true,  borderColor: '70AD47' }),
-        };
-
-        // ═══════════════════════════════════════════════════════════
-        // HELPER PRINCIPAL : construit un worksheet
-        // ═══════════════════════════════════════════════════════════
-        const buildSheet = (headerLines, tableTitle, columns, rows, colWidths, naSection = null) => {
-            const ws = {};
-            const nbCols = Math.max(columns.length, naSection ? (naSection.columns || []).length : 0);
-            let r = 0;
-            const rowHeights = [];
-
-            // Lignes institutionnelles
-            headerLines.forEach((line, i) => {
-                const isFirst = (i === 0);
-                const st = isFirst ? ST.instBold : ST.inst;
-                const text = line.value ? `${line.label} ${line.value}` : line.label;
-                merge(ws, r, 0, r, nbCols - 1, text, st);
-                rowHeights.push([r, isFirst ? 22 : 18]);
-                r++;
-            });
-
-            // Ligne vide
-            rowHeights.push([r, 8]);
-            r++;
-
-            // Titre principal
-            merge(ws, r, 0, r, nbCols - 1, tableTitle, ST.title);
-            rowHeights.push([r, 28]);
-            r++;
-
-            // Ligne vide
-            rowHeights.push([r, 8]);
-            r++;
-
-            // En-têtes colonnes
-            columns.forEach((col, c) => {
-                const ref = XLSX.utils.encode_cell({ r, c });
-                ws[ref] = { v: col, t: 's', s: ST.colHead };
-            });
-            rowHeights.push([r, 22]);
-            r++;
-
-            // Données
-            rows.forEach((row, idx) => {
-                const st = idx % 2 === 0 ? ST.rowEven : ST.rowOdd;
-                row.forEach((cell, c) => {
-                    const ref = XLSX.utils.encode_cell({ r, c });
-                    ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
-                });
-                for (let c = row.length; c < columns.length; c++) {
-                    const ref = XLSX.utils.encode_cell({ r, c });
-                    ws[ref] = { v: '', t: 's', s: st };
-                }
-                rowHeights.push([r, 18]);
-                r++;
-            });
-
-            // Section non-affectés
-            if (naSection) {
-                rowHeights.push([r, 10]);
-                r++;
-
-                merge(ws, r, 0, r, nbCols - 1, naSection.title, ST.naTitle);
-                rowHeights.push([r, 24]);
-                r++;
-
-                if (naSection.rows.length === 0) {
-                    merge(ws, r, 0, r, nbCols - 1, '✅ جميع الأساتذة تم توزيعهم على هذه المادة', ST.ok);
-                    rowHeights.push([r, 20]);
-                    r++;
-                } else {
-                    // En-têtes colonnes non-affectés (3 colonnes seulement)
-                    const naCols = naSection.columns;
-                    naCols.forEach((col, c) => {
-                        const ref = XLSX.utils.encode_cell({ r, c });
-                        ws[ref] = { v: col, t: 's', s: ST.naColHead };
-                    });
-                    // Remplir jusqu'à nbCols
-                    for (let c = naCols.length; c < nbCols; c++) {
-                        const ref = XLSX.utils.encode_cell({ r, c });
-                        ws[ref] = { v: '', t: 's', s: ST.naColHead };
-                    }
-                    rowHeights.push([r, 20]);
-                    r++;
-
-                    // Données non-affectés
-                    naSection.rows.forEach((row, idx) => {
-                        const st = idx % 2 === 0 ? ST.naEven : ST.naOdd;
-                        row.forEach((cell, c) => {
-                            const ref = XLSX.utils.encode_cell({ r, c });
-                            ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
-                        });
-                        for (let c = row.length; c < nbCols; c++) {
-                            const ref = XLSX.utils.encode_cell({ r, c });
-                            ws[ref] = { v: '', t: 's', s: st };
-                        }
-                        rowHeights.push([r, 18]);
-                        r++;
-                    });
-
-                    // Ligne total
-                    merge(ws, r, 0, r, nbCols - 1, naSection.totalLine, ST.total);
-                    rowHeights.push([r, 22]);
-                    r++;
-                }
-            }
-
-            ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r - 1, c: nbCols - 1 } });
-            ws['!cols'] = colWidths.map(w => ({ wch: w }));
-            ws['!rtl'] = true;
-            setRowHeights(ws, rowHeights);
-
-            return ws;
-        };
-
-        // ═══════════════════════════════════════════════════════════
-        // Lignes institutionnelles communes
-        // ═══════════════════════════════════════════════════════════
-        const instLines = [
-            { label: ministere },
-            { label: 'الأكادمية:', value: faculty },
-            { label: 'المديرية:', value: university },
-            { label: 'المؤسسة:', value: ecole },
-            { label: 'السنة الدراسية:', value: academicYear },
-            { label: 'نوع الامتحان:', value: this.type_examen },
-        ];
-
-        // ═══════════════════════════════════════════════════════════
-        // FEUILLES PAR MATIÈRE UNIQUEMENT
-        // ═══════════════════════════════════════════════════════════
-        const matieresGroup = {};
-        this.affectations.forEach(a => {
-            if (!matieresGroup[a.matiere]) matieresGroup[a.matiere] = [];
-            matieresGroup[a.matiere].push(a);
+        // Return professors who teach this subject but were NOT assigned to it
+        // (most relevant list: only those whose matiere matches)
+        const profsEnseignantMatiere = this.professeurs.filter(prof => {
+            const profMatiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
+            return profMatiere === nomMatiere;
         });
 
-        for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
+        return profsEnseignantMatiere.filter(prof => !profsAffectesMatiere.has(prof.nom));
+    }
 
-            // ── Colonnes tableau affectation ──
-            const matCols = ['القاعة', 'تاريخ ووقت الامتحان'];
-            for (let i = nbrProfsSalle; i >= 1; i--) matCols.push(`الأستاذ ${i}`);
+    genererExcel() {
+        const university = document.getElementById('universityName').value.trim();
+        const faculty = document.getElementById('facultyName').value.trim();
+        const facultyy = document.getElementById('faculty').value.trim();
+        const academicYear = document.getElementById('academicYear').value.trim();
+        const ecole = document.getElementById('ecoleName').value.trim();
 
-            // ── Données tableau affectation ──
-            const groupedBySalle = {};
-            affectationsMatiere.forEach(a => {
-                if (!groupedBySalle[a.salle]) groupedBySalle[a.salle] = { salle: a.salle, date: a.date_heure, profs: [] };
-                groupedBySalle[a.salle].profs.push(a.professeur);
-            });
-
-            const matRows = Object.values(groupedBySalle).map(item => {
-                const row = [item.salle, item.date];
-                for (let i = nbrProfsSalle - 1; i >= 0; i--) row.push(item.profs[i] || '');
-                return row;
-            });
-
-            // ── 3 colonnes pour les non-affectés ──
-            const naCols = ['الاسم الكامل', 'المادة', 'عدم التوفر'];
-
-            const nbCols = Math.max(matCols.length, naCols.length);
-
-            // Largeurs colonnes
-            const matColW = [14, 26];
-            for (let i = 0; i < nbrProfsSalle; i++) matColW.push(28);
-            while (matColW.length < nbCols) matColW.push(28);
-
-            // ── Données non-affectés (3 colonnes seulement) ──
-            const profsNonAff = this.obtenirProfsNonAffectesParMatiere(matiere);
-            const nbAff = new Set(
-                this.affectations.filter(a => a.matiere === matiere).map(a => a.professeur)
-            ).size;
-            const nbNon = profsNonAff.length;
-            const total = this.professeurs.length;
-
-            const naRows = profsNonAff.map(prof => {
-                const indispoText = prof.indisponibilites && prof.indisponibilites.length > 0
-                    ? prof.indisponibilites.map(([j, p]) => `${j}-${p === 'matin' ? 'ص' : 'م'}`).join(' | ')
-                    : 'لا يوجد';
-                return [
-                    prof.nom,
-                    prof.matiere || '',
-                    indispoText
-                ];
-            });
-
-            // Largeurs finales (max entre les deux sections)
-            const naColW = [30, 20, 30];
-            const finalColW = [];
-            for (let i = 0; i < nbCols; i++) {
-                finalColW.push(Math.max(matColW[i] || 14, naColW[i] || 14));
-            }
-
-            const wsMatiere = buildSheet(
-                instLines,
-                `جدول مراقبة مادة : ${matiere}`,
-                matCols,
-                matRows,
-                finalColW,
-                {
-                    title:     `الأساتذة غير الموزعين على هذه المادة`,
-                    columns:   naCols,
-                    rows:      naRows,
-                    totalLine: `✔ الموزعون: ${nbAff}  ✖ غير الموزعين: ${nbNon}  Σ الإجمالي: ${total}`
-                }
-            );
-
-            const sheetName = matiere.substring(0, 31);
-            XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+        if (!university || !faculty || !academicYear || !ecole) {
+            Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
+            return;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // SAUVEGARDE
-        // ═══════════════════════════════════════════════════════════
-        const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
-        XLSX.writeFile(wb, fileName);
+        try {
+            const wb = XLSX.utils.book_new();
+            const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
 
-        this.closeModal('excelConfigModal');
-        Swal.fire({
-            title: 'نجاح',
-            html: `تم إنشاء ملف Excel بنجاح يحتوي على:<br>
-                   <b>جداول لكل مادة</b> مع قائمة الأساتذة غير الموزعين (الاسم، المادة، عدم التوفر)`,
-            icon: 'success'
-        });
+            /* =========================
+               FEUILLE PRINCIPALE : الجدول العام
+            ========================= */
+            const data = [];
+            data.push([`الوزارة : ${facultyy}`]);
+            data.push([`المديرية: ${university}`]);
+            data.push([`الأكادمية: ${faculty}`]);
+            data.push([`المؤسسة: ${ecole}`]);
+            data.push([`السنة الدراسية : ${academicYear}`]);
+            data.push([`نوع الامتحان : ${this.type_examen}`]);
+            data.push([]);
 
-    } catch (e) {
-        Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
+            const header = ['المادة', 'تاريخ ووقت الامتحان', 'القاعة'];
+            for (let i = nbrProfsSalle; i >= 1; i--) {
+                header.push(`الأستاذ ${i}`);
+            }
+            data.push(header);
+
+            const grouped = {};
+            this.affectations.forEach(a => {
+                const key = `${a.matiere}_${a.salle}`;
+                if (!grouped[key]) {
+                    grouped[key] = { matiere: a.matiere, salle: a.salle, date: a.date_heure, profs: [] };
+                }
+                grouped[key].profs.push(a.professeur);
+            });
+
+            Object.values(grouped).forEach(item => {
+                const row = [item.matiere, item.date, item.salle];
+                for (let i = nbrProfsSalle - 1; i >= 0; i--) {
+                    row.push(item.profs[i] || '');
+                }
+                data.push(row);
+            });
+
+            const wsGlobal = XLSX.utils.aoa_to_sheet(data);
+            wsGlobal['!rtl'] = true;
+            const range = XLSX.utils.decode_range(wsGlobal['!ref']);
+
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = range.s.c; C <= range.e.c; C++) {
+                    const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!wsGlobal[ref]) continue;
+                    wsGlobal[ref].s = {
+                        alignment: { horizontal: 'center', vertical: 'center', readingOrder: 'rtl' },
+                        font: { name: 'Arial', sz: R <= 6 ? 14 : 11, bold: R === 7 },
+                        fill: R === 7 ? { fgColor: { rgb: "D9E1F2" } } : R <= 6 ? { fgColor: { rgb: "BDD7EE" } } : undefined,
+                        border: {
+                            top: { style: "thin", color: { rgb: "000000" } },
+                            bottom: { style: "thin", color: { rgb: "000000" } },
+                            left: { style: "thin", color: { rgb: "000000" } },
+                            right: { style: "thin", color: { rgb: "000000" } }
+                        }
+                    };
+                }
+            }
+
+            const colWidths = [];
+            for (let i = 0; i < nbrProfsSalle; i++) colWidths.push({ wch: 25 });
+            colWidths.push({ wch: 15 }, { wch: 25 }, { wch: 25 });
+            wsGlobal['!cols'] = colWidths;
+            XLSX.utils.book_append_sheet(wb, wsGlobal, 'الجدول العام');
+
+            /* =========================
+               FEUILLE : الأساتذة غير الموزعين (global)
+            ========================= */
+            const nonAffectesData = [];
+            nonAffectesData.push([`الوزارة : ${facultyy}`]);
+            nonAffectesData.push([`المديرية: ${university}`]);
+            nonAffectesData.push([`الأكادمية: ${faculty}`]);
+            nonAffectesData.push([`المؤسسة: ${ecole}`]);
+            nonAffectesData.push([`السنة الدراسية : ${academicYear}`]);
+            nonAffectesData.push([`نوع الامتحان : ${this.type_examen}`]);
+            nonAffectesData.push([]);
+            nonAffectesData.push(['قائمة الأساتذة غير الموزعين لكل مادة']);
+            nonAffectesData.push([]);
+
+            const profsAffectesGlobal = new Set(this.affectations.map(a => a.professeur));
+            const matieresNonAffectesGlobal = {};
+
+            this.professeurs.forEach(prof => {
+                if (!profsAffectesGlobal.has(prof.nom)) {
+                    const matiere = prof.matiere || 'غير محدد';
+                    if (!matieresNonAffectesGlobal[matiere]) matieresNonAffectesGlobal[matiere] = [];
+                    matieresNonAffectesGlobal[matiere].push(prof.nom);
+                }
+            });
+
+            Object.entries(matieresNonAffectesGlobal).forEach(([matiere, profs]) => {
+                nonAffectesData.push([`المادة: ${matiere}`]);
+                nonAffectesData.push(['الاسم الكامل', 'رقم التأجير', 'ملاحظات']);
+                profs.forEach(profNom => {
+                    const prof = this.professeurs.find(p => p.nom === profNom);
+                    nonAffectesData.push([
+                        profNom,
+                        prof.numero || '',
+                        prof.indisponibilites && prof.indisponibilites.length > 0 ? 'لديه عدم توفر' : ''
+                    ]);
+                });
+                nonAffectesData.push([]);
+            });
+
+            nonAffectesData.push([]);
+            nonAffectesData.push(['إحصائيات عامة:']);
+            nonAffectesData.push([`إجمالي الأساتذة: ${this.professeurs.length}`]);
+            nonAffectesData.push([`عدد الأساتذة الموزعين: ${profsAffectesGlobal.size}`]);
+            nonAffectesData.push([`عدد الأساتذة غير الموزعين: ${this.professeurs.length - profsAffectesGlobal.size}`]);
+
+            const wsNonAffectes = XLSX.utils.aoa_to_sheet(nonAffectesData);
+            wsNonAffectes['!rtl'] = true;
+            const rangeNA = XLSX.utils.decode_range(wsNonAffectes['!ref']);
+
+            for (let R = rangeNA.s.r; R <= rangeNA.e.r; R++) {
+                for (let C = rangeNA.s.c; C <= rangeNA.e.c; C++) {
+                    const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!wsNonAffectes[ref]) continue;
+                    wsNonAffectes[ref].s = {
+                        alignment: { horizontal: 'center', vertical: 'center', readingOrder: 'rtl' },
+                        font: { name: 'Arial', sz: R <= 6 ? 14 : (R === 7 ? 16 : 11), bold: R === 7 || R === 8 },
+                        fill: R === 7 ? { fgColor: { rgb: "FCE4D6" } } : R <= 6 ? { fgColor: { rgb: "E2EFDA" } } : undefined,
+                        border: {
+                            top: { style: "thin", color: { rgb: "000000" } },
+                            bottom: { style: "thin", color: { rgb: "000000" } },
+                            left: { style: "thin", color: { rgb: "000000" } },
+                            right: { style: "thin", color: { rgb: "000000" } }
+                        }
+                    };
+                }
+            }
+
+            wsNonAffectes['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }];
+            XLSX.utils.book_append_sheet(wb, wsNonAffectes, 'غير الموزعين');
+
+            /* =========================
+               FEUILLES PAR MATIÈRE  ← NOUVELLE FONCTIONNALITÉ ICI
+            ========================= */
+            const matieresGroup = {};
+            this.affectations.forEach(a => {
+                if (!matieresGroup[a.matiere]) matieresGroup[a.matiere] = [];
+                matieresGroup[a.matiere].push(a);
+            });
+
+            for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
+                const dataMatiere = [];
+
+                // En-tête
+                dataMatiere.push([`المديرية : ${university}`]);
+                dataMatiere.push([`الأكادمية: ${faculty}`]);
+                dataMatiere.push([`الوزارة: ${facultyy}`]);
+                dataMatiere.push([`المؤسسة : ${ecole}`]);
+                dataMatiere.push([`السنة الدراسية : ${academicYear}`]);
+                dataMatiere.push([`نوع الامتحان : ${this.type_examen}`]);
+                dataMatiere.push([`المادة : ${matiere}`]);
+                dataMatiere.push([]);
+
+                // Tableau des affectations
+                const headerMatiere = ['القاعة', 'تاريخ ووقت الامتحان'];
+                for (let i = nbrProfsSalle; i >= 1; i--) headerMatiere.push(`الأستاذ ${i}`);
+                dataMatiere.push(headerMatiere);
+
+                const groupedBySalle = {};
+                affectationsMatiere.forEach(a => {
+                    if (!groupedBySalle[a.salle]) {
+                        groupedBySalle[a.salle] = { salle: a.salle, date: a.date_heure, profs: [] };
+                    }
+                    groupedBySalle[a.salle].profs.push(a.professeur);
+                });
+
+                Object.values(groupedBySalle).forEach(item => {
+                    const row = [item.salle, item.date];
+                    for (let i = nbrProfsSalle - 1; i >= 0; i--) row.push(item.profs[i] || '');
+                    dataMatiere.push(row);
+                });
+
+                // ── NOUVELLE SECTION : الأساتذة غير الموزعين لهذه المادة ──
+                const profsNonAffectesMatiere = this.obtenirProfsNonAffectesParMatiere(matiere);
+
+                dataMatiere.push([]); // ligne vide de séparation
+                dataMatiere.push([`الأساتذة غير الموزعين لمادة : ${matiere}`]);
+
+                if (profsNonAffectesMatiere.length === 0) {
+                    dataMatiere.push(['لا يوجد أساتذة غير موزعين لهذه المادة']);
+                } else {
+                    // En-tête du tableau des non-affectés
+                    dataMatiere.push(['الاسم الكامل', 'رقم التأجير', 'فترات عدم التوفر', 'ملاحظات']);
+
+                    profsNonAffectesMatiere.forEach(prof => {
+                        const indispoText = prof.indisponibilites && prof.indisponibilites.length > 0
+                            ? prof.indisponibilites.map(([jour, periode]) => `${jour}-${periode === 'matin' ? 'صباح' : 'مساء'}`).join(' | ')
+                            : 'لا يوجد';
+                        dataMatiere.push([
+                            prof.nom,
+                            prof.numero || '',
+                            indispoText,
+                            prof.indisponibilites && prof.indisponibilites.length > 0 ? 'لديه قيود توفر' : ''
+                        ]);
+                    });
+
+                    // Ligne de résumé
+                    dataMatiere.push([`الإجمالي: ${profsNonAffectesMatiere.length} أستاذ غير موزع`, '', '', '']);
+                }
+                // ── نهاية القسم الجديد ──
+
+                const wsMatiere = XLSX.utils.aoa_to_sheet(dataMatiere);
+                wsMatiere['!rtl'] = true;
+                const rangeMatiere = XLSX.utils.decode_range(wsMatiere['!ref']);
+
+                // Nombre de lignes du tableau d'affectation (pour le style)
+                const nbLignesAffectation = 9 + Object.keys(groupedBySalle).length; // 8 lignes d'en-tête + header tableau + données
+                // Ligne de début de la section non-affectés
+                const ligneDebutNonAffectes = nbLignesAffectation + 1; // +1 pour ligne vide
+
+                for (let R = rangeMatiere.s.r; R <= rangeMatiere.e.r; R++) {
+                    for (let C = rangeMatiere.s.c; C <= rangeMatiere.e.c; C++) {
+                        const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!wsMatiere[ref]) continue;
+
+                        let fillColor = undefined;
+                        let fontSize = 11;
+                        let isBold = false;
+
+                        if (R <= 6) {
+                            // En-tête du document
+                            fillColor = { rgb: "FCE4D6" };
+                            fontSize = 14;
+                        } else if (R === 7) {
+                            // Titre de la matière
+                            fillColor = { rgb: "FCE4D6" };
+                            fontSize = 14;
+                            isBold = true;
+                        } else if (R === 8) {
+                            // Ligne vide
+                        } else if (R === 9) {
+                            // En-tête du tableau d'affectation
+                            fillColor = { rgb: "E2EFDA" };
+                            isBold = true;
+                        } else if (R === ligneDebutNonAffectes) {
+                            // Titre section non-affectés
+                            fillColor = { rgb: "FFF2CC" };
+                            fontSize = 13;
+                            isBold = true;
+                        } else if (R === ligneDebutNonAffectes + 1) {
+                            // En-tête tableau non-affectés (ou message vide)
+                            fillColor = { rgb: "FFE699" };
+                            isBold = true;
+                        } else if (R > ligneDebutNonAffectes + 1 && R === rangeMatiere.e.r) {
+                            // Ligne de résumé (dernière ligne)
+                            fillColor = { rgb: "F4B942" };
+                            isBold = true;
+                        }
+
+                        wsMatiere[ref].s = {
+                            alignment: { horizontal: 'center', vertical: 'center', readingOrder: 'rtl' },
+                            font: { name: 'Arial', sz: fontSize, bold: isBold },
+                            fill: fillColor ? { fgColor: fillColor } : undefined,
+                            border: {
+                                top: { style: "thin", color: { rgb: "000000" } },
+                                bottom: { style: "thin", color: { rgb: "000000" } },
+                                left: { style: "thin", color: { rgb: "000000" } },
+                                right: { style: "thin", color: { rgb: "000000" } }
+                            }
+                        };
+                    }
+                }
+
+                const colWidthsMatiere = [];
+                for (let i = 0; i < nbrProfsSalle; i++) colWidthsMatiere.push({ wch: 25 });
+                colWidthsMatiere.push({ wch: 25 }, { wch: 15 });
+                // Colonnes supplémentaires pour la section non-affectés
+                colWidthsMatiere.push({ wch: 20 }, { wch: 25 });
+                wsMatiere['!cols'] = colWidthsMatiere;
+
+                const sheetName = matiere.substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+            }
+
+            /* =========================
+               SAUVEGARDE
+            ========================= */
+            const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            this.closeModal('excelConfigModal');
+            Swal.fire('نجاح', `تم إنشاء ملف Excel بنجاح يحتوي على:<br>1. الجدول العام<br>2. قائمة غير الموزعين<br>3. جداول المواد (مع قوائم غير الموزعين لكل مادة)`, 'success');
+
+        } catch (e) {
+            Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
+        }
     }
-}
 
     // ========== STATISTIQUES ==========
 

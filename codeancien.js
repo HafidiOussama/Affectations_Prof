@@ -39,6 +39,7 @@ class ApplicationAffectation {
         document.getElementById('addProfessorBtn').addEventListener('click', () => this.showProfessorModal());
         document.getElementById('editProfessorBtn').addEventListener('click', () => this.modifierProfesseur());
         document.getElementById('deleteProfessorBtn').addEventListener('click', () => this.supprimerProfesseur());
+        // AJOUT: Bouton pour supprimer tous les professeurs importés
         document.getElementById('deleteAllProfessorsBtn').addEventListener('click', () => this.supprimerTousLesProfesseurs());
         document.getElementById('manageUnavailabilityBtn').addEventListener('click', () => this.gererIndisponibilites());
         document.getElementById('deleteUnavailabilityBtn').addEventListener('click', () => this.supprimerIndisponibilite());
@@ -99,15 +100,25 @@ class ApplicationAffectation {
     // ========== GESTION DE L'INTERFACE ==========
 
     switchTab(tabName) {
+        // Cacher tous les onglets
         document.querySelectorAll('.tab-content').forEach(tab => {
             tab.classList.remove('active');
         });
+        
+        // Désactiver tous les boutons d'onglets
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.classList.remove('active');
         });
+        
+        // Afficher l'onglet sélectionné
         document.getElementById(tabName).classList.add('active');
+        
+        // Activer le bouton correspondant
         document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        
+        // Fermer le menu mobile si ouvert
         document.querySelector('.nav-tabs').classList.remove('active');
+        
         this.updateStatus(`تم التبديل إلى ${this.getTabName(tabName)}`);
     }
 
@@ -192,9 +203,12 @@ class ApplicationAffectation {
     }
 
     selectProfessorRow(row) {
+        // Enlever la sélection précédente
         document.querySelectorAll('#professorsTableBody tr').forEach(r => {
             r.classList.remove('selected-row');
         });
+        
+        // Ajouter la sélection à la nouvelle ligne
         row.classList.add('selected-row');
         this.selectedProfessorIndex = parseInt(row.dataset.index);
     }
@@ -235,9 +249,11 @@ class ApplicationAffectation {
         };
         
         if (this.selectedProfessorIndex !== null && document.getElementById('modalTitle').textContent === 'تعديل الأستاذ') {
+            // Mettre à jour le professeur existant
             professeur.indisponibilites = this.professeurs[this.selectedProfessorIndex].indisponibilites || [];
             this.professeurs[this.selectedProfessorIndex] = professeur;
         } else {
+            // Ajouter un nouveau professeur
             this.professeurs.push(professeur);
         }
         
@@ -255,6 +271,7 @@ class ApplicationAffectation {
             Swal.fire('تنبيه', 'يرجى اختيار أستاذ أولاً', 'warning');
             return;
         }
+        
         const professeur = this.professeurs[this.selectedProfessorIndex];
         this.showProfessorModal(professeur);
     }
@@ -280,11 +297,13 @@ class ApplicationAffectation {
                 this.updateStats();
                 this.saveToLocalStorage();
                 this.selectedProfessorIndex = null;
+                
                 Swal.fire('نجاح', 'تم حذف الأستاذ بنجاح', 'success');
             }
         });
     }
 
+    // AJOUT: Méthode pour supprimer tous les professeurs
     supprimerTousLesProfesseurs() {
         if (this.professeurs.length === 0) {
             Swal.fire('تنبيه', 'لا يوجد أساتذة في القائمة', 'info');
@@ -301,7 +320,7 @@ class ApplicationAffectation {
                     </p>
                     <p style="margin-top: 15px; color: #666;">
                         <i class="fas fa-info-circle"></i>
-                        هذه العملية لا يمكن التراجع عنها.
+                        هذه العملية لا يمكن التراجع عنها. سيتم حذف جميع الأساتذة، سواء تم استيرادهم من ملف Excel أو إضافتهم يدوياً.
                     </p>
                 </div>
             `,
@@ -313,20 +332,40 @@ class ApplicationAffectation {
             focusCancel: true
         }).then((result) => {
             if (result.isConfirmed) {
+                // Sauvegarder le nombre de professeurs pour le message
                 const count = this.professeurs.length;
+                
+                // Vider la liste des professeurs
                 this.professeurs = [];
+                
+                // Réinitialiser les affectations
                 this.affectations = [];
+                
+                // Mettre à jour l'affichage
                 this.afficherProfesseurs();
                 this.updateStats();
                 this.saveToLocalStorage();
+                
+                // Réinitialiser la sélection
                 this.selectedProfessorIndex = null;
                 
+                // Mettre à jour le tableau des affectations s'il existe
                 const assignmentsTable = document.getElementById('assignmentsTableBody');
-                if (assignmentsTable) assignmentsTable.innerHTML = '';
+                if (assignmentsTable) {
+                    assignmentsTable.innerHTML = '';
+                }
+                
+                // Mettre à jour les statistiques des affectations
                 const statsContainer = document.getElementById('assignmentsStats');
-                if (statsContainer) statsContainer.innerHTML = '';
+                if (statsContainer) {
+                    statsContainer.innerHTML = '';
+                }
+                
+                // Supprimer la section des non-affectés si elle existe
                 const nonAffectesSection = document.getElementById('nonAffectesSection');
-                if (nonAffectesSection) nonAffectesSection.remove();
+                if (nonAffectesSection) {
+                    nonAffectesSection.remove();
+                }
                 
                 Swal.fire({
                     title: 'نجاح',
@@ -348,9 +387,11 @@ class ApplicationAffectation {
         const professeur = this.professeurs[this.selectedProfessorIndex];
         document.getElementById('unavailabilityTitle').textContent = `إدارة عدم التوفر - ${professeur.nom}`;
         
+        // Remplir les champs existants
         if (professeur.indisponibilites && professeur.indisponibilites.length > 0) {
             const jours = [...new Set(professeur.indisponibilites.map(([jour]) => jour))];
             document.getElementById('unavailabilityDays').value = jours.join(', ');
+            
             const periodes = [...new Set(professeur.indisponibilites.map(([, periode]) => periode))];
             document.getElementById('morningPeriod').checked = periodes.includes('matin');
             document.getElementById('eveningPeriod').checked = periodes.includes('soir');
@@ -372,6 +413,7 @@ class ApplicationAffectation {
             Swal.fire('خطأ', 'يرجى إدخال أيام عدم التوفر', 'error');
             return;
         }
+        
         if (!matin && !soir) {
             Swal.fire('خطأ', 'يرجى اختيار فترة عدم التوفر على الأقل', 'error');
             return;
@@ -379,6 +421,7 @@ class ApplicationAffectation {
         
         const jours = joursText.split(',').map(j => j.trim()).filter(j => j);
         const indisponibilites = [];
+        
         jours.forEach(jour => {
             if (matin) indisponibilites.push([jour, 'matin']);
             if (soir) indisponibilites.push([jour, 'soir']);
@@ -389,6 +432,7 @@ class ApplicationAffectation {
         this.updateStats();
         this.saveToLocalStorage();
         this.closeModal('unavailabilityModal');
+        
         Swal.fire('نجاح', 'تم تحديث عدم التوفر بنجاح', 'success');
     }
 
@@ -399,6 +443,7 @@ class ApplicationAffectation {
         }
         
         const professeur = this.professeurs[this.selectedProfessorIndex];
+        
         if (!professeur.indisponibilites || professeur.indisponibilites.length === 0) {
             Swal.fire('تنبيه', 'لا توجد فترات عدم توفر لحذفها', 'info');
             return;
@@ -432,13 +477,17 @@ class ApplicationAffectation {
             }
         }).then((result) => {
             if (result.isConfirmed && result.value.length > 0) {
+                // Trier les indices en ordre décroissant pour éviter les problèmes d'index
                 const indices = result.value.sort((a, b) => b - a);
+                
                 indices.forEach(index => {
                     professeur.indisponibilites.splice(index, 1);
                 });
+                
                 this.afficherProfesseurs();
                 this.updateStats();
                 this.saveToLocalStorage();
+                
                 Swal.fire('نجاح', `تم حذف ${indices.length} فترة عدم توفر`, 'success');
             }
         });
@@ -466,10 +515,12 @@ class ApplicationAffectation {
                         return;
                     }
                     
+                    // Trouver les indices des colonnes
                     const headers = jsonData[0];
                     let nomIndex = -1;
                     let matiereIndex = -1;
                     
+                    // Chercher les en-têtes
                     headers.forEach((header, index) => {
                         const headerStr = String(header || '').trim();
                         if (headerStr.includes('اسم') || headerStr.includes('الاسم') || headerStr.includes('name') || headerStr.includes('Name')) {
@@ -480,25 +531,37 @@ class ApplicationAffectation {
                         }
                     });
                     
+                    // Si les en-têtes ne sont pas trouvés, utiliser les premières colonnes
                     if (nomIndex === -1 && headers.length > 0) nomIndex = 0;
                     if (matiereIndex === -1 && headers.length > 1) matiereIndex = 1;
                     
                     if (nomIndex === -1 || matiereIndex === -1) {
-                        Swal.fire('خطأ', 'الملف لا يحتوي على الأعمدة المطلوبة (الاسم الكامل، المادة)', 'error');
+                        Swal.fire('خطأ', 
+                            'الملف لا يحتوي على الأعمدة المطلوبة (الاسم الكامل، المادة)',
+                            'error');
                         return;
                     }
                     
+                    // Traiter les données (sans l'en-tête)
                     const nouveauxProfs = [];
                     for (let i = 1; i < jsonData.length; i++) {
                         const row = jsonData[i];
                         if (!row || row.length === 0) continue;
+                        
                         const nom = String(row[nomIndex] || '').trim();
                         const matiere = String(row[matiereIndex] || '').trim();
+                        
                         if (nom && matiere) {
-                            nouveauxProfs.push({ nom, matiere, numero: '', indisponibilites: [] });
+                            nouveauxProfs.push({
+                                nom: nom,
+                                matiere: matiere,
+                                numero: '',
+                                indisponibilites: []
+                            });
                         }
                     }
                     
+                    // Demander à l'utilisateur s'il veut ajouter ou remplacer
                     if (this.professeurs.length > 0) {
                         Swal.fire({
                             title: 'خيارات الاستيراد',
@@ -529,6 +592,7 @@ class ApplicationAffectation {
                                     this.finaliserImportExcel(nouveauxProfs.length, 'إضافة');
                                     Swal.close();
                                 });
+                                
                                 document.getElementById('remplacerBtn').addEventListener('click', () => {
                                     this.professeurs = nouveauxProfs;
                                     this.finaliserImportExcel(nouveauxProfs.length, 'استبدال');
@@ -537,16 +601,20 @@ class ApplicationAffectation {
                             }
                         });
                     } else {
+                        // Si la liste est vide, ajouter directement
                         this.professeurs = nouveauxProfs;
                         this.finaliserImportExcel(nouveauxProfs.length, 'إضافة');
                     }
                     
                 } catch (error) {
+                    console.error('Error reading file:', error);
                     Swal.fire('خطأ', `خطأ في قراءة الملف: ${error.message}`, 'error');
                 }
             };
+            
             reader.readAsArrayBuffer(file);
         };
+        
         input.click();
     }
 
@@ -555,6 +623,7 @@ class ApplicationAffectation {
         this.updateStats();
         this.saveToLocalStorage();
         
+        // Extraire et afficher les matières
         const matieres = this.obtenirListeMatieres();
         let message = `تم ${operation} ${count} أستاذ بنجاح!`;
         
@@ -565,6 +634,7 @@ class ApplicationAffectation {
             });
             if (matieres.length > 5) message += '\n...';
         }
+        
         Swal.fire('نجاح', message, 'success');
     }
 
@@ -572,6 +642,7 @@ class ApplicationAffectation {
 
     obtenirListeMatieres() {
         if (!this.professeurs.length) return [];
+        
         const matieresCount = {};
         this.professeurs.forEach(prof => {
             const matiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
@@ -579,6 +650,7 @@ class ApplicationAffectation {
                 matieresCount[matiere] = (matieresCount[matiere] || 0) + 1;
             }
         });
+        
         return Object.entries(matieresCount).sort((a, b) => b[1] - a[1]);
     }
 
@@ -602,6 +674,7 @@ class ApplicationAffectation {
                 <td>${matiere}</td>
                 <td>${count}</td>
             `;
+            
             tr.addEventListener('click', (e) => {
                 if (e.target.type !== 'checkbox') {
                     const checkbox = tr.querySelector('input[type="checkbox"]');
@@ -609,10 +682,12 @@ class ApplicationAffectation {
                     this.toggleSubjectSelection(checkbox.checked, matiere);
                 }
             });
+            
             const checkbox = tr.querySelector('input[type="checkbox"]');
             checkbox.addEventListener('change', (e) => {
                 this.toggleSubjectSelection(e.target.checked, matiere);
             });
+            
             tbody.appendChild(tr);
         });
         
@@ -639,6 +714,7 @@ class ApplicationAffectation {
         document.getElementById('subjectCount').value = nbrMatieres;
         this.genererFormulaireMatieres();
         
+        // Remplir le formulaire avec les matières sélectionnées
         const tbody = document.getElementById('subjectsTableBody');
         if (!tbody) return;
         
@@ -651,6 +727,7 @@ class ApplicationAffectation {
         
         this.remplirFormulaireMatieres();
         this.closeModal('subjectsExtractModal');
+        
         Swal.fire('نجاح', `تم تحميل ${nbrMatieres} مادة من قائمة الأساتذة`, 'success');
     }
 
@@ -674,13 +751,22 @@ class ApplicationAffectation {
             confirmButtonColor: '#d33'
         }).then((result) => {
             if (result.isConfirmed) {
+                // Filtrer les matières - supprimer uniquement de la liste this.matieres
                 const matieresASupprimer = new Set(matieresArray);
-                this.matieres = this.matieres.filter(matiere => !matieresASupprimer.has(matiere.nom));
+                
+                // Conserver seulement les matières qui ne sont pas dans la liste des matières à supprimer
+                this.matieres = this.matieres.filter(matiere => 
+                    !matieresASupprimer.has(matiere.nom)
+                );
+                
+                // Mettre à jour le formulaire
                 document.getElementById('subjectCount').value = this.matieres.length;
                 this.genererFormulaireMatieres();
                 this.remplirFormulaireMatieres();
+                
                 this.saveToLocalStorage();
                 this.closeModal('subjectsExtractModal');
+                
                 Swal.fire('نجاح', `تم حذف ${matieresArray.length} مادة من قائمة المواد فقط`, 'success');
             }
         });
@@ -692,6 +778,7 @@ class ApplicationAffectation {
             Swal.fire('تنبيه', 'لا توجد مواد في قائمة الأساتذة', 'warning');
             return;
         }
+        
         this.selectedSubjects.clear();
         matieres.forEach(([matiere]) => this.selectedSubjects.add(matiere));
         this.utiliserMatieresSelectionnees();
@@ -709,11 +796,13 @@ class ApplicationAffectation {
             container.innerHTML = '';
             
             if (nbrMatieres === 0) {
+                // Si 0 matières, vider le tableau
                 this.matieres = [];
                 this.saveToLocalStorage();
                 return;
             }
             
+            // Créer le tableau
             const table = document.createElement('table');
             table.className = 'data-table';
             table.innerHTML = `
@@ -729,20 +818,28 @@ class ApplicationAffectation {
                 </thead>
                 <tbody id="subjectsTableBody"></tbody>
             `;
+            
             container.appendChild(table);
             
+            // Initialiser ou ajuster le tableau des matières
             if (this.matieres.length > nbrMatieres) {
                 this.matieres = this.matieres.slice(0, nbrMatieres);
             } else {
                 while (this.matieres.length < nbrMatieres) {
                     const i = this.matieres.length;
+                    const dateExam = `${(i % 30) + 1}/12/2024`;
+                    const periode = i % 2 === 0 ? 'صباح' : 'مساء';
+                    const heureDebut = i % 2 === 0 ? '08:00' : '14:00';
+                    const heureFin = i % 2 === 0 ? '12:00' : '18:00';
+                    const duree = i % 2 === 0 ? '04:00' : '04:00';
+                    
                     this.matieres.push({
                         nom: '',
-                        date: `${(i % 30) + 1}/12/2024`,
-                        periode: i % 2 === 0 ? 'صباح' : 'مساء',
-                        heure_debut: i % 2 === 0 ? '08:00' : '14:00',
-                        heure_fin: i % 2 === 0 ? '12:00' : '18:00',
-                        duree: '04:00'
+                        date: dateExam,
+                        periode: periode,
+                        heure_debut: heureDebut,
+                        heure_fin: heureFin,
+                        duree: duree
                     });
                 }
             }
@@ -765,18 +862,22 @@ class ApplicationAffectation {
                     <td><input type="time" class="form-control" data-field="heure_fin" data-index="${i}" value="${matiere.heure_fin}"></td>
                     <td><input type="text" class="form-control" data-field="duree" data-index="${i}" value="${matiere.duree}" readonly></td>
                 `;
+                
                 tbody.appendChild(tr);
             });
             
+            // Ajouter les événements pour le calcul de la durée
             tbody.addEventListener('change', (e) => {
                 const target = e.target;
                 const index = parseInt(target.dataset.index);
+                
                 if (!isNaN(index) && index >= 0 && index < this.matieres.length) {
                     if (target.dataset.field === 'periode') {
                         this.updateHeuresPeriode(index, target.value);
                     } else if (target.dataset.field === 'heure_debut' || target.dataset.field === 'heure_fin') {
                         this.calculerDuree(index);
                     }
+                    
                     this.sauvegarderMatiere(index);
                 }
             });
@@ -784,6 +885,7 @@ class ApplicationAffectation {
             tbody.addEventListener('input', (e) => {
                 const target = e.target;
                 const index = parseInt(target.dataset.index);
+                
                 if (!isNaN(index) && index >= 0 && index < this.matieres.length && target.type === 'text') {
                     this.sauvegarderMatiere(index);
                 }
@@ -808,6 +910,7 @@ class ApplicationAffectation {
             heureDebutInput.value = '14:00';
             heureFinInput.value = '18:00';
         }
+        
         dureeInput.value = '04:00';
         
         if (index < this.matieres.length) {
@@ -816,6 +919,7 @@ class ApplicationAffectation {
             this.matieres[index].heure_fin = heureFinInput.value;
             this.matieres[index].duree = '04:00';
         }
+        
         this.saveToLocalStorage();
     }
 
@@ -825,6 +929,7 @@ class ApplicationAffectation {
         const dureeInput = document.querySelector(`[data-field="duree"][data-index="${index}"]`);
         
         if (!heureDebutInput || !heureFinInput || !dureeInput) return;
+        
         if (!heureDebutInput.value || !heureFinInput.value) {
             dureeInput.value = '00:00';
             return;
@@ -832,32 +937,38 @@ class ApplicationAffectation {
         
         const [h1, m1] = heureDebutInput.value.split(':').map(Number);
         const [h2, m2] = heureFinInput.value.split(':').map(Number);
+        
         let totalMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
         if (totalMinutes < 0) totalMinutes += 24 * 60;
         
         const heures = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
+        
         dureeInput.value = `${heures.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
         
         if (index < this.matieres.length) {
             this.matieres[index].duree = dureeInput.value;
         }
+        
         this.saveToLocalStorage();
     }
 
     sauvegarderMatiere(index) {
         if (index >= this.matieres.length) return;
+        
         const inputs = document.querySelectorAll(`[data-index="${index}"]`);
         inputs.forEach(input => {
             const field = input.dataset.field;
             this.matieres[index][field] = input.value;
         });
+        
         this.saveToLocalStorage();
     }
 
     remplirFormulaireMatieres() {
         const tbody = document.getElementById('subjectsTableBody');
         if (!tbody) return;
+        
         this.matieres.forEach((matiere, index) => {
             const inputs = document.querySelectorAll(`[data-index="${index}"]`);
             inputs.forEach(input => {
@@ -893,6 +1004,7 @@ class ApplicationAffectation {
                 this.genererFormulaireMatieres();
                 this.remplirFormulaireMatieres();
                 this.saveToLocalStorage();
+                
                 Swal.fire('نجاح', 'تم حذف المادة بنجاح', 'success');
             }
         });
@@ -909,6 +1021,8 @@ class ApplicationAffectation {
             
             const nbrSalles = parseInt(document.getElementById('roomCount').value) || 0;
             const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
+            
+            // Filtrer les matières avec nom
             const matieresValides = this.matieres.filter(m => m.nom && m.nom.trim());
             
             if (matieresValides.length === 0) {
@@ -941,52 +1055,50 @@ class ApplicationAffectation {
     calculerAffectations(nbrProfsSalle, matieres) {
         const affectations = [];
         const historiqueProfs = {};
-        // Stocker les infos des matières pour le rapport post-calcul
-        this._matieresInfo = {};
-        matieres.forEach(m => {
-            this._matieresInfo[m.nom] = {
-                date: m.date,
-                periode: m.periode,
-                demiJournee: `${m.date}-${m.periode}`
-            };
-        });
-
+        
         matieres.forEach(matiere => {
             const demiJournee = `${matiere.date}-${matiere.periode}`;
             const dateHeure = `${matiere.date} ${matiere.heure_debut}-${matiere.heure_fin}`;
-
+            
             this.salles.forEach(salle => {
-                const profsAffectesASalle = [];
+                const profsAffectes = [];
                 const profsDisponibles = [...this.professeurs];
-
+                
+                // Mélanger les professeurs
                 for (let i = profsDisponibles.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [profsDisponibles[i], profsDisponibles[j]] = [profsDisponibles[j], profsDisponibles[i]];
                 }
-
+                
                 for (let i = 0; i < nbrProfsSalle; i++) {
                     let profTrouve = null;
-
+                    
                     for (const prof of profsDisponibles) {
-                        if (!profsAffectesASalle.includes(prof) &&
+                        if (!profsAffectes.includes(prof) && 
                             this.estProfesseurValide(prof, salle, demiJournee, matiere.nom, affectations, historiqueProfs)) {
                             profTrouve = prof;
                             break;
                         }
                     }
-
+                    
                     if (profTrouve) {
-                        profsAffectesASalle.push(profTrouve);
+                        profsAffectes.push(profTrouve);
+                        
+                        // Utiliser le nom comme identifiant au lieu du numéro de location
                         const profId = profTrouve.nom;
-
+                        
                         if (!historiqueProfs[profId]) {
-                            historiqueProfs[profId] = { salles: new Set(), matieres: new Set(), creneaux: new Set() };
+                            historiqueProfs[profId] = {
+                                salles: new Set(),
+                                matieres: new Set(),
+                                creneaux: new Set()
+                            };
                         }
-
+                        
                         historiqueProfs[profId].salles.add(salle);
                         historiqueProfs[profId].matieres.add(matiere.nom);
                         historiqueProfs[profId].creneaux.add(demiJournee);
-
+                        
                         affectations.push({
                             matiere: matiere.nom,
                             date_heure: dateHeure,
@@ -998,80 +1110,41 @@ class ApplicationAffectation {
                 }
             });
         });
-
-        // ── Construire le rapport APRÈS que toutes les affectations sont finalisées ──
-        // Cela garantit que historiqueProfs est complet et cohérent.
-        this.rapportNonAffectes = {};
-
-        const pasPropreMatiere = document.getElementById('constraint1').checked;
-        const pasMemeSalle    = document.getElementById('constraint2').checked;
-        const pasMemeGroupe   = document.getElementById('constraint3').checked;
-
-        matieres.forEach(matiere => {
-            const demiJournee = `${matiere.date}-${matiere.periode}`;
-            const [date, periode] = [matiere.date, matiere.periode];
-
-            // Ensemble des profs effectivement affectés à cette matière (dédupliqué)
-            const profsAffectesSet = new Set(
-                affectations.filter(a => a.matiere === matiere.nom).map(a => a.professeur)
-            );
-
-            this.rapportNonAffectes[matiere.nom] = {};
-
-            this.professeurs.forEach(prof => {
-                if (profsAffectesSet.has(prof.nom)) {
-                    // Affecté — ne pas inclure dans le rapport des non-affectés
-                    return;
-                }
-
-                // Ce prof n'a PAS été affecté à cette matière — calculer pourquoi
-                const indispos = prof.indisponibilites || [];
-                const profMatiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
-                const hist = historiqueProfs[prof.nom];
-                const raisons = [];
-
-                if (indispos.some(([jour, p]) => jour === date && p === periode)) {
-                    raisons.push('غير متوفر في هذا اليوم/الفترة');
-                }
-                if (pasPropreMatiere && profMatiere === matiere.nom) {
-                    raisons.push('يدرّس هذه المادة (قيد 1)');
-                }
-                if (pasMemeGroupe && hist && hist.creneaux.has(demiJournee)) {
-                    raisons.push('موزع في نفس الفترة على مادة أخرى (قيد 3)');
-                }
-                if (pasMemeSalle && hist && hist.salles.size >= this.salles.length) {
-                    raisons.push('استنفد جميع القاعات (قيد 2)');
-                }
-                if (raisons.length === 0) {
-                    raisons.push('لم تتوفر خانة شاغرة مناسبة');
-                }
-
-                this.rapportNonAffectes[matiere.nom][prof.nom] = {
-                    prof,
-                    raison: raisons.join(' | ')
-                };
-            });
-        });
-
+        
         return affectations;
     }
 
     estProfesseurValide(prof, salle, demiJournee, matiere, affectationsExistantes, historique) {
         const [date, periode] = demiJournee.split('-');
         
+        // Vérifier les indisponibilités
         const indispos = prof.indisponibilites || [];
-        if (indispos.some(([jour, p]) => jour === date && p === periode)) return false;
+        if (indispos.some(([jour, p]) => jour === date && p === periode)) {
+            return false;
+        }
         
+        // Vérifier les contraintes
         const pasPropreMatiere = document.getElementById('constraint1').checked;
         const pasMemeSalle = document.getElementById('constraint2').checked;
         const pasMemeGroupe = document.getElementById('constraint3').checked;
         
+        // Utiliser le nom comme identifiant
         const profId = prof.nom;
+        
+        // Convertir la matière du professeur en chaîne de caractères
         const profMatiere = typeof prof.matiere === 'string' ? prof.matiere.trim() : String(prof.matiere || '').trim();
         
-        if (pasPropreMatiere && profMatiere === matiere) return false;
-        if (pasMemeSalle && historique[profId] && historique[profId].salles.has(salle)) return false;
-        if (pasMemeGroupe && historique[profId] && historique[profId].creneaux.has(demiJournee)) return false;
+        if (pasPropreMatiere && profMatiere === matiere) {
+            return false;
+        }
+        
+        if (pasMemeSalle && historique[profId] && historique[profId].salles.has(salle)) {
+            return false;
+        }
+        
+        if (pasMemeGroupe && historique[profId] && historique[profId].creneaux.has(demiJournee)) {
+            return false;
+        }
         
         return true;
     }
@@ -1085,33 +1158,53 @@ class ApplicationAffectation {
         const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
         const affectationsParMatiere = {};
         
+        // Organiser les affectations
         this.affectations.forEach(affectation => {
             const matiere = affectation.matiere;
-            if (!affectationsParMatiere[matiere]) affectationsParMatiere[matiere] = {};
+            if (!affectationsParMatiere[matiere]) {
+                affectationsParMatiere[matiere] = {};
+            }
+            
             const salle = affectation.salle;
             if (!affectationsParMatiere[matiere][salle]) {
-                affectationsParMatiere[matiere][salle] = { date_heure: affectation.date_heure, professeurs: [] };
+                affectationsParMatiere[matiere][salle] = {
+                    date_heure: affectation.date_heure,
+                    professeurs: []
+                };
             }
+            
             affectationsParMatiere[matiere][salle].professeurs.push(affectation.professeur);
         });
         
+        // Mettre à jour l'en-tête du tableau (de droite à gauche)
         const thead = document.querySelector('#assignmentsTable thead tr');
         thead.innerHTML = '<th>الحالة</th>';
+        
+        // Ajouter les colonnes pour chaque professeur (de droite à gauche)
         for (let i = nbrProfsSalle; i >= 1; i--) {
             thead.innerHTML += `<th>الأستاذ ${i}</th>`;
         }
+        
         thead.innerHTML += '<th>القاعة</th><th>تاريخ ووقت الامتحان</th><th>المادة</th>';
         
+        // Afficher les données
         for (const [matiere, salles] of Object.entries(affectationsParMatiere)) {
             for (const [salle, info] of Object.entries(salles)) {
                 const tr = document.createElement('tr');
                 let rowHTML = '';
+                
+                // Ajouter la colonne état (première colonne à droite)
                 const statut = info.professeurs.length >= nbrProfsSalle ? '🟢 مكتمل' : '🟡 جزئي';
                 rowHTML += `<td>${statut}</td>`;
+                
+                // Ajouter les professeurs dans des colonnes séparées (de droite à gauche)
                 for (let i = nbrProfsSalle - 1; i >= 0; i--) {
                     rowHTML += `<td>${info.professeurs[i] || ''}</td>`;
                 }
+                
+                // Ajouter les autres colonnes
                 rowHTML += `<td>${salle}</td><td>${info.date_heure}</td><td>${matiere}</td>`;
+                
                 tr.innerHTML = rowHTML;
                 tbody.appendChild(tr);
             }
@@ -1121,6 +1214,7 @@ class ApplicationAffectation {
     afficherStatsAffectations() {
         const container = document.getElementById('assignmentsStats');
         container.innerHTML = '';
+        
         if (this.affectations.length === 0) return;
         
         const totalAffectations = this.affectations.length;
@@ -1142,7 +1236,9 @@ class ApplicationAffectation {
             const card = document.createElement('div');
             card.className = 'stat-card';
             card.innerHTML = `
-                <div class="stat-icon"><i class="${stat.icon}"></i></div>
+                <div class="stat-icon">
+                    <i class="${stat.icon}"></i>
+                </div>
                 <h3>${stat.title}</h3>
                 <p>${stat.value}</p>
             `;
@@ -1150,9 +1246,12 @@ class ApplicationAffectation {
         });
     }
 
+    // ========== NOUVELLE MÉTHODE : AFFICHER LES PROFESSEURS NON AFFECTÉS ==========
+
     afficherProfsNonAffectes() {
         if (this.affectations.length === 0) return;
         
+        // Trouver ou créer la section pour afficher les non-affectés
         let nonAffectesSection = document.getElementById('nonAffectesSection');
         if (!nonAffectesSection) {
             nonAffectesSection = document.createElement('div');
@@ -1164,6 +1263,8 @@ class ApplicationAffectation {
                 </div>
                 <div class="table-container" id="nonAffectesContainer"></div>
             `;
+            
+            // Insérer après le tableau des affectations
             const assignmentsTable = document.querySelector('#affectations .table-container');
             assignmentsTable.parentNode.insertBefore(nonAffectesSection, assignmentsTable.nextSibling);
         }
@@ -1171,7 +1272,10 @@ class ApplicationAffectation {
         const container = document.getElementById('nonAffectesContainer');
         container.innerHTML = '';
         
+        // Obtenir la liste de tous les professeurs affectés
         const profsAffectes = new Set(this.affectations.map(a => a.professeur));
+        
+        // Grouper les professeurs non affectés par matière
         const matieresNonAffectes = {};
         const profsSansMatiere = [];
         
@@ -1179,7 +1283,9 @@ class ApplicationAffectation {
             if (!profsAffectes.has(prof.nom)) {
                 const matiere = prof.matiere ? prof.matiere.trim() : 'غير محدد';
                 if (matiere && matiere !== 'غير محدد') {
-                    if (!matieresNonAffectes[matiere]) matieresNonAffectes[matiere] = [];
+                    if (!matieresNonAffectes[matiere]) {
+                        matieresNonAffectes[matiere] = [];
+                    }
                     matieresNonAffectes[matiere].push(prof);
                 } else {
                     profsSansMatiere.push(prof);
@@ -1187,6 +1293,7 @@ class ApplicationAffectation {
             }
         });
         
+        // Créer le tableau principal
         const table = document.createElement('table');
         table.className = 'data-table';
         table.innerHTML = `
@@ -1201,19 +1308,28 @@ class ApplicationAffectation {
             </thead>
             <tbody id="nonAffectesTableBody"></tbody>
         `;
+        
         container.appendChild(table);
         const tbody = document.getElementById('nonAffectesTableBody');
         
+        // Ajouter les professeurs non affectés par matière
         Object.entries(matieresNonAffectes).forEach(([matiere, profs]) => {
+            // Ajouter une ligne pour le nom de la matière
             const matiereRow = document.createElement('tr');
             matiereRow.className = 'matiere-header-row';
-            matiereRow.innerHTML = `<td colspan="5" style="background-color: #2a2a3c; font-weight: bold; color: #339af0;"><i class="fas fa-book"></i> ${matiere} (${profs.length} أستاذ)</td>`;
+            matiereRow.innerHTML = `
+                <td colspan="5" style="background-color: #2a2a3c; font-weight: bold; color: #339af0;">
+                    <i class="fas fa-book"></i> ${matiere} (${profs.length} أستاذ)
+                </td>
+            `;
             tbody.appendChild(matiereRow);
             
-            profs.forEach(prof => {
+            // Ajouter les professeurs de cette matière
+            profs.forEach((prof, index) => {
                 const indispoText = prof.indisponibilites && prof.indisponibilites.length > 0 
                     ? prof.indisponibilites.map(([jour, periode]) => `${jour}-${periode === 'matin' ? 'صباح' : 'مساء'}`).join(', ')
                     : 'لا يوجد';
+                
                 const tr = document.createElement('tr');
                 tr.className = 'non-affecte-row';
                 tr.innerHTML = `
@@ -1226,21 +1342,28 @@ class ApplicationAffectation {
                 tbody.appendChild(tr);
             });
             
+            // Ajouter une ligne vide entre les matières
             const emptyRow = document.createElement('tr');
             emptyRow.innerHTML = '<td colspan="5" style="height: 10px;"></td>';
             tbody.appendChild(emptyRow);
         });
         
+        // Ajouter les professeurs sans matière spécifiée
         if (profsSansMatiere.length > 0) {
             const sansMatiereRow = document.createElement('tr');
             sansMatiereRow.className = 'matiere-header-row';
-            sansMatiereRow.innerHTML = `<td colspan="5" style="background-color: #2a2a3c; font-weight: bold; color: #fa5252;"><i class="fas fa-question-circle"></i> أساتذة بدون مادة محددة (${profsSansMatiere.length} أستاذ)</td>`;
+            sansMatiereRow.innerHTML = `
+                <td colspan="5" style="background-color: #2a2a3c; font-weight: bold; color: #fa5252;">
+                    <i class="fas fa-question-circle"></i> أساتذة بدون مادة محددة (${profsSansMatiere.length} أستاذ)
+                </td>
+            `;
             tbody.appendChild(sansMatiereRow);
             
             profsSansMatiere.forEach(prof => {
                 const indispoText = prof.indisponibilites && prof.indisponibilites.length > 0 
                     ? prof.indisponibilites.map(([jour, periode]) => `${jour}-${periode === 'matin' ? 'صباح' : 'مساء'}`).join(', ')
                     : 'لا يوجد';
+                
                 const tr = document.createElement('tr');
                 tr.className = 'non-affecte-row';
                 tr.innerHTML = `
@@ -1254,10 +1377,15 @@ class ApplicationAffectation {
             });
         }
         
+        // Ajouter un résumé
         const totalNonAffectes = this.professeurs.length - profsAffectes.size;
         const summaryRow = document.createElement('tr');
         summaryRow.className = 'summary-row';
-        summaryRow.innerHTML = `<td colspan="5" style="background-color: #495057; color: white; font-weight: bold; text-align: center;"><i class="fas fa-chart-bar"></i> إجمالي الأساتذة غير الموزعين: ${totalNonAffectes} من ${this.professeurs.length}</td>`;
+        summaryRow.innerHTML = `
+            <td colspan="5" style="background-color: #495057; color: white; font-weight: bold; text-align: center;">
+                <i class="fas fa-chart-bar"></i> إجمالي الأساتذة غير الموزعين: ${totalNonAffectes} من ${this.professeurs.length}
+            </td>
+        `;
         tbody.appendChild(summaryRow);
     }
 
@@ -1268,367 +1396,271 @@ class ApplicationAffectation {
             Swal.fire('تنبيه', 'يرجى توليد التوزيع أولاً', 'warning');
             return;
         }
+        
+        // NE PAS réinitialiser les valeurs à vide
+        // Laisser les valeurs par défaut du HTML s'afficher
+        
         this.showModal('excelConfigModal');
     }
+   
+    genererExcel() {
+        const university = document.getElementById('universityName').value.trim();
+        const faculty = document.getElementById('facultyName').value.trim();
+        const facultyy = document.getElementById('faculty').value.trim();
+        const academicYear = document.getElementById('academicYear').value.trim();
+        const ecole = document.getElementById('ecoleName').value.trim();
 
-    /**
-     * Returns professors NOT assigned to a specific subject (matiere).
-     * A professor is considered "non-assigned for this subject" if:
-     *  - They teach that subject (their prof.matiere matches), AND
-     *  - They were never assigned to any room for that subject.
-     * OR more broadly: any professor who does not appear in the assignments for that subject.
-     * We use the broader definition: all profs whose name doesn't appear in affectations for this matiere.
-     */
-    /**
-     * Retourne la liste des profs NON affectés à une matière donnée, avec raison.
-     * Garantit : affectés (dédupliqués) + non-affectés = total profs.
-     */
-    obtenirProfsNonAffectesParMatiere(nomMatiere) {
-        // Cas nominal : rapport disponible (généré dans la même session)
-        if (this.rapportNonAffectes && this.rapportNonAffectes[nomMatiere]) {
-            return Object.values(this.rapportNonAffectes[nomMatiere])
-                .map(e => ({ ...e.prof, raison: e.raison }));
+        if (!university || !faculty || !academicYear || !ecole) {
+            Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
+            return;
         }
 
-        // Fallback (données rechargées depuis localStorage, rapport absent)
-        const profsAffectesMatiere = new Set(
-            this.affectations.filter(a => a.matiere === nomMatiere).map(a => a.professeur)
-        );
-        return this.professeurs
-            .filter(prof => !profsAffectesMatiere.has(prof.nom))
-            .map(prof => ({ ...prof, raison: 'غير محدد (بيانات مخزنة)' }));
-    }
+        try {
+            const wb = XLSX.utils.book_new();
+            const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
 
-   genererExcel() {
-    const university = document.getElementById('universityName').value.trim();
-    const faculty    = document.getElementById('facultyName').value.trim();
-    const ministere  = document.getElementById('faculty').value.trim();
-    const academicYear = document.getElementById('academicYear').value.trim();
-    const ecole      = document.getElementById('ecoleName').value.trim();
-
-    if (!university || !faculty || !academicYear || !ecole) {
-        Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
-        return;
-    }
-
-    try {
-        const wb = XLSX.utils.book_new();
-        const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
-
-        // ═══════════════════════════════════════════════════════════
-        // PALETTE DE COULEURS
-        // ═══════════════════════════════════════════════════════════
-        const CLR = {
-            INST_BG:   '1F3864',
-            INST_FG:   'FFFFFF',
-            TITLE_BG:  '2E75B6',
-            TITLE_FG:  'FFFFFF',
-            COL_BG:    '2E75B6',
-            COL_FG:    'FFFFFF',
-            ROW_EVEN:  'DEEAF1',
-            ROW_ODD:   'FFFFFF',
-            NA_TITLE_BG: 'C55A11',
-            NA_TITLE_FG: 'FFFFFF',
-            NA_COL_BG:  'F4B942',
-            NA_COL_FG:  '000000',
-            NA_ROW_EVEN: 'FFF2CC',
-            NA_ROW_ODD:  'FFFFFF',
-            TOTAL_BG:   '1F3864',
-            TOTAL_FG:   'FFFFFF',
-            OK_BG:      '70AD47',
-            OK_FG:      'FFFFFF',
-            BORDER_DARK: '1F3864',
-            BORDER_MED:  '2E75B6',
-            BORDER_LIGHT:'BDD7EE',
-        };
-
-        const S = ({
-            bg = null, fg = '000000', sz = 11, bold = false,
-            italic = false, halign = 'center', valign = 'center',
-            wrapText = true, borderType = 'all', borderColor = null,
-            topBorderStyle = 'thin', bottomBorderStyle = 'thin'
-        } = {}) => {
-            const bc = borderColor || CLR.BORDER_LIGHT;
-            const border = {};
-            if (borderType === 'all' || borderType === 'outer') {
-                const mk = (style, color) => ({ style, color: { rgb: color } });
-                border.top    = mk(topBorderStyle,    bc);
-                border.bottom = mk(bottomBorderStyle, bc);
-                border.left   = mk('thin', bc);
-                border.right  = mk('thin', bc);
+            /* =========================
+               FEUILLE PRINCIPALE : الجدول العام
+            ========================= */
+            const data = [];
+            data.push([`الوزارة : ${facultyy}`]);
+            data.push([`المديرية: ${university}`]);
+            data.push([`الأكادمية: ${faculty}`]);
+            data.push([`المؤسسة: ${ecole}`]);
+            data.push([ `السنة الدراسية : ${academicYear}`]);
+            data.push([`نوع الامتحان : ${this.type_examen}`]);
+            data.push([]);
+            
+            const header = ['المادة', 'تاريخ ووقت الامتحان', 'القاعة'];
+            for (let i = nbrProfsSalle; i >= 1; i--) {
+                header.push(`الأستاذ ${i}`);
             }
-            const s = {
-                font: { name: 'Arial', sz, bold, italic, color: { rgb: fg } },
-                alignment: { horizontal: halign, vertical: valign,
-                             readingOrder: 2, wrapText },
-                border
-            };
-            if (bg) s.fill = { patternType: 'solid', fgColor: { rgb: bg } };
-            return s;
-        };
+            data.push(header);
 
-        const merge = (ws, r1, c1, r2, c2, value, style) => {
-            if (!ws['!merges']) ws['!merges'] = [];
-            ws['!merges'].push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
-            for (let R = r1; R <= r2; R++) {
-                for (let C = c1; C <= c2; C++) {
-                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-                    if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
-                    ws[cellRef].s = style;
+            // Grouper les affectations
+            const grouped = {};
+            this.affectations.forEach(a => {
+                const key = `${a.matiere}_${a.salle}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        matiere: a.matiere,
+                        salle: a.salle,
+                        date: a.date_heure,
+                        profs: []
+                    };
                 }
-            }
-            const ref = XLSX.utils.encode_cell({ r: r1, c: c1 });
-            ws[ref] = { v: value, t: 's', s: style };
-        };
-
-        const setRowHeights = (ws, heights) => {
-            if (!ws['!rows']) ws['!rows'] = [];
-            heights.forEach(([r, h]) => {
-                while (ws['!rows'].length <= r) ws['!rows'].push({});
-                ws['!rows'][r] = { hpt: h };
-            });
-        };
-
-        const ST = {
-            inst:     S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 11, bold: false, borderColor: CLR.BORDER_DARK }),
-            instBold: S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 13, bold: true,  borderColor: CLR.BORDER_DARK }),
-            title:    S({ bg: CLR.TITLE_BG,    fg: CLR.TITLE_FG,    sz: 14, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            colHead:  S({ bg: CLR.COL_BG,      fg: CLR.COL_FG,      sz: 11, bold: true,  borderColor: CLR.BORDER_MED }),
-            rowEven:  S({ bg: CLR.ROW_EVEN,    fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
-            rowOdd:   S({ bg: CLR.ROW_ODD,     fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
-            naTitle:  S({ bg: CLR.NA_TITLE_BG, fg: CLR.NA_TITLE_FG, sz: 12, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            naColHead:S({ bg: CLR.NA_COL_BG,   fg: CLR.NA_COL_FG,   sz: 11, bold: true,  borderColor: '000000' }),
-            naEven:   S({ bg: CLR.NA_ROW_EVEN, fg: '000000',        sz: 10, borderColor: '999999' }),
-            naOdd:    S({ bg: CLR.NA_ROW_ODD,  fg: '000000',        sz: 10, borderColor: '999999' }),
-            total:    S({ bg: CLR.TOTAL_BG,    fg: CLR.TOTAL_FG,    sz: 11, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            ok:       S({ bg: CLR.OK_BG,       fg: CLR.OK_FG,       sz: 11, bold: true,  borderColor: '70AD47' }),
-        };
-
-        // ═══════════════════════════════════════════════════════════
-        // HELPER PRINCIPAL : construit un worksheet
-        // ═══════════════════════════════════════════════════════════
-        const buildSheet = (headerLines, tableTitle, columns, rows, colWidths, naSection = null) => {
-            const ws = {};
-            const nbCols = Math.max(columns.length, naSection ? (naSection.columns || []).length : 0);
-            let r = 0;
-            const rowHeights = [];
-
-            // Lignes institutionnelles
-            headerLines.forEach((line, i) => {
-                const isFirst = (i === 0);
-                const st = isFirst ? ST.instBold : ST.inst;
-                const text = line.value ? `${line.label} ${line.value}` : line.label;
-                merge(ws, r, 0, r, nbCols - 1, text, st);
-                rowHeights.push([r, isFirst ? 22 : 18]);
-                r++;
+                grouped[key].profs.push(a.professeur);
             });
 
-            // Ligne vide
-            rowHeights.push([r, 8]);
-            r++;
-
-            // Titre principal
-            merge(ws, r, 0, r, nbCols - 1, tableTitle, ST.title);
-            rowHeights.push([r, 28]);
-            r++;
-
-            // Ligne vide
-            rowHeights.push([r, 8]);
-            r++;
-
-            // En-têtes colonnes
-            columns.forEach((col, c) => {
-                const ref = XLSX.utils.encode_cell({ r, c });
-                ws[ref] = { v: col, t: 's', s: ST.colHead };
-            });
-            rowHeights.push([r, 22]);
-            r++;
-
-            // Données
-            rows.forEach((row, idx) => {
-                const st = idx % 2 === 0 ? ST.rowEven : ST.rowOdd;
-                row.forEach((cell, c) => {
-                    const ref = XLSX.utils.encode_cell({ r, c });
-                    ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
-                });
-                for (let c = row.length; c < columns.length; c++) {
-                    const ref = XLSX.utils.encode_cell({ r, c });
-                    ws[ref] = { v: '', t: 's', s: st };
+            Object.values(grouped).forEach(item => {
+                const row = [item.matiere, item.date, item.salle];
+                for (let i = nbrProfsSalle - 1; i >= 0; i--) {
+                    row.push(item.profs[i] || '');
                 }
-                rowHeights.push([r, 18]);
-                r++;
+                data.push(row);
             });
 
-            // Section non-affectés
-            if (naSection) {
-                rowHeights.push([r, 10]);
-                r++;
+            const wsGlobal = XLSX.utils.aoa_to_sheet(data);
+            wsGlobal['!rtl'] = true;
+            const range = XLSX.utils.decode_range(wsGlobal['!ref']);
 
-                merge(ws, r, 0, r, nbCols - 1, naSection.title, ST.naTitle);
-                rowHeights.push([r, 24]);
-                r++;
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = range.s.c; C <= range.e.c; C++) {
+                    const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!wsGlobal[ref]) continue;
 
-                if (naSection.rows.length === 0) {
-                    merge(ws, r, 0, r, nbCols - 1, '✅ جميع الأساتذة تم توزيعهم على هذه المادة', ST.ok);
-                    rowHeights.push([r, 20]);
-                    r++;
-                } else {
-                    // En-têtes colonnes non-affectés (3 colonnes seulement)
-                    const naCols = naSection.columns;
-                    naCols.forEach((col, c) => {
-                        const ref = XLSX.utils.encode_cell({ r, c });
-                        ws[ref] = { v: col, t: 's', s: ST.naColHead };
-                    });
-                    // Remplir jusqu'à nbCols
-                    for (let c = naCols.length; c < nbCols; c++) {
-                        const ref = XLSX.utils.encode_cell({ r, c });
-                        ws[ref] = { v: '', t: 's', s: ST.naColHead };
-                    }
-                    rowHeights.push([r, 20]);
-                    r++;
-
-                    // Données non-affectés
-                    naSection.rows.forEach((row, idx) => {
-                        const st = idx % 2 === 0 ? ST.naEven : ST.naOdd;
-                        row.forEach((cell, c) => {
-                            const ref = XLSX.utils.encode_cell({ r, c });
-                            ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
-                        });
-                        for (let c = row.length; c < nbCols; c++) {
-                            const ref = XLSX.utils.encode_cell({ r, c });
-                            ws[ref] = { v: '', t: 's', s: st };
+                    wsGlobal[ref].s = {
+                        alignment: { horizontal: 'center', vertical: 'center', readingOrder: 'rtl' },
+                        font: { name: 'Arial', sz: R <= 6 ? 14 : 11, bold: R === 7 },
+                        fill: R === 7 ? { fgColor: { rgb: "D9E1F2" } } : 
+                              R <= 6 ? { fgColor: { rgb: "BDD7EE" } } : undefined,
+                        border: {
+                            top: { style: "thin", color: { rgb: "000000" } },
+                            bottom: { style: "thin", color: { rgb: "000000" } },
+                            left: { style: "thin", color: { rgb: "000000" } },
+                            right: { style: "thin", color: { rgb: "000000" } }
                         }
-                        rowHeights.push([r, 18]);
-                        r++;
-                    });
-
-                    // Ligne total
-                    merge(ws, r, 0, r, nbCols - 1, naSection.totalLine, ST.total);
-                    rowHeights.push([r, 22]);
-                    r++;
+                    };
                 }
             }
 
-            ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r - 1, c: nbCols - 1 } });
-            ws['!cols'] = colWidths.map(w => ({ wch: w }));
-            ws['!rtl'] = true;
-            setRowHeights(ws, rowHeights);
+            const colWidths = [];
+            for (let i = 0; i < nbrProfsSalle; i++) colWidths.push({ wch: 25 });
+            colWidths.push({ wch: 15 }, { wch: 25 }, { wch: 25 });
+            wsGlobal['!cols'] = colWidths;
 
-            return ws;
-        };
+            XLSX.utils.book_append_sheet(wb, wsGlobal, 'الجدول العام');
 
-        // ═══════════════════════════════════════════════════════════
-        // Lignes institutionnelles communes
-        // ═══════════════════════════════════════════════════════════
-        const instLines = [
-            { label: ministere },
-            { label: 'الأكادمية:', value: faculty },
-            { label: 'المديرية:', value: university },
-            { label: 'المؤسسة:', value: ecole },
-            { label: 'السنة الدراسية:', value: academicYear },
-            { label: 'نوع الامتحان:', value: this.type_examen },
-        ];
+            /* =========================
+               FEUILLE : الأساتذة غير الموزعين
+            ========================= */
+            const nonAffectesData = [];
+            nonAffectesData.push([`الوزارة : ${facultyy}`]);
+            nonAffectesData.push([`المديرية: ${university}`]);
+            nonAffectesData.push([`الأكادمية: ${faculty}`]);
+            nonAffectesData.push([`المؤسسة: ${ecole}`]);
+            nonAffectesData.push([ `السنة الدراسية : ${academicYear}`]);
+            nonAffectesData.push([`نوع الامتحان : ${this.type_examen}`]);
+            nonAffectesData.push([]);
+            nonAffectesData.push(['قائمة الأساتذة غير الموزعين لكل مادة']);
+            nonAffectesData.push([]);
 
-        // ═══════════════════════════════════════════════════════════
-        // FEUILLES PAR MATIÈRE UNIQUEMENT
-        // ═══════════════════════════════════════════════════════════
-        const matieresGroup = {};
-        this.affectations.forEach(a => {
-            if (!matieresGroup[a.matiere]) matieresGroup[a.matiere] = [];
-            matieresGroup[a.matiere].push(a);
-        });
-
-        for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
-
-            // ── Colonnes tableau affectation ──
-            const matCols = ['القاعة', 'تاريخ ووقت الامتحان'];
-            for (let i = nbrProfsSalle; i >= 1; i--) matCols.push(`الأستاذ ${i}`);
-
-            // ── Données tableau affectation ──
-            const groupedBySalle = {};
-            affectationsMatiere.forEach(a => {
-                if (!groupedBySalle[a.salle]) groupedBySalle[a.salle] = { salle: a.salle, date: a.date_heure, profs: [] };
-                groupedBySalle[a.salle].profs.push(a.professeur);
+            // Obtenir la liste de tous les professeurs affectés
+            const profsAffectes = new Set(this.affectations.map(a => a.professeur));
+            
+            // Grouper les professeurs non affectés par matière
+            const matieresNonAffectes = {};
+            
+            this.professeurs.forEach(prof => {
+                if (!profsAffectes.has(prof.nom)) {
+                    const matiere = prof.matiere || 'غير محدد';
+                    if (!matieresNonAffectes[matiere]) {
+                        matieresNonAffectes[matiere] = [];
+                    }
+                    matieresNonAffectes[matiere].push(prof.nom);
+                }
             });
 
-            const matRows = Object.values(groupedBySalle).map(item => {
-                const row = [item.salle, item.date];
-                for (let i = nbrProfsSalle - 1; i >= 0; i--) row.push(item.profs[i] || '');
-                return row;
+            // Ajouter les matières avec professeurs non affectés
+            Object.entries(matieresNonAffectes).forEach(([matiere, profs]) => {
+                nonAffectesData.push([`المادة: ${matiere}`]);
+                nonAffectesData.push(['الاسم الكامل', 'رقم التأجير', 'ملاحظات']);
+                
+                profs.forEach(profNom => {
+                    const prof = this.professeurs.find(p => p.nom === profNom);
+                    nonAffectesData.push([
+                        profNom,
+                        prof.numero || '',
+                        prof.indisponibilites && prof.indisponibilites.length > 0 ? 'لديه عدم توفر' : ''
+                    ]);
+                });
+                
+                nonAffectesData.push([]);
             });
 
-            // ── 3 colonnes pour les non-affectés ──
-            const naCols = ['الاسم الكامل', 'المادة', 'عدم التوفر'];
+            // Ajouter les statistiques
+            nonAffectesData.push([]);
+            nonAffectesData.push(['إحصائيات عامة:']);
+            nonAffectesData.push([`إجمالي الأساتذة: ${this.professeurs.length}`]);
+            nonAffectesData.push([`عدد الأساتذة الموزعين: ${profsAffectes.size}`]);
+            nonAffectesData.push([`عدد الأساتذة غير الموزعين: ${this.professeurs.length - profsAffectes.size}`]);
 
-            const nbCols = Math.max(matCols.length, naCols.length);
+            const wsNonAffectes = XLSX.utils.aoa_to_sheet(nonAffectesData);
+            wsNonAffectes['!rtl'] = true;
+            const rangeNA = XLSX.utils.decode_range(wsNonAffectes['!ref']);
 
-            // Largeurs colonnes
-            const matColW = [14, 26];
-            for (let i = 0; i < nbrProfsSalle; i++) matColW.push(28);
-            while (matColW.length < nbCols) matColW.push(28);
+            for (let R = rangeNA.s.r; R <= rangeNA.e.r; R++) {
+                for (let C = rangeNA.s.c; C <= rangeNA.e.c; C++) {
+                    const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!wsNonAffectes[ref]) continue;
 
-            // ── Données non-affectés (3 colonnes seulement) ──
-            const profsNonAff = this.obtenirProfsNonAffectesParMatiere(matiere);
-            const nbAff = new Set(
-                this.affectations.filter(a => a.matiere === matiere).map(a => a.professeur)
-            ).size;
-            const nbNon = profsNonAff.length;
-            const total = this.professeurs.length;
-
-            const naRows = profsNonAff.map(prof => {
-                const indispoText = prof.indisponibilites && prof.indisponibilites.length > 0
-                    ? prof.indisponibilites.map(([j, p]) => `${j}-${p === 'matin' ? 'ص' : 'م'}`).join(' | ')
-                    : 'لا يوجد';
-                return [
-                    prof.nom,
-                    prof.matiere || '',
-                    indispoText
-                ];
-            });
-
-            // Largeurs finales (max entre les deux sections)
-            const naColW = [30, 20, 30];
-            const finalColW = [];
-            for (let i = 0; i < nbCols; i++) {
-                finalColW.push(Math.max(matColW[i] || 14, naColW[i] || 14));
+                    wsNonAffectes[ref].s = {
+                        alignment: { horizontal: 'center', vertical: 'center', readingOrder: 'rtl' },
+                        font: { 
+                            name: 'Arial', 
+                            sz: R <= 6 ? 14 : (R === 7 ? 16 : 11),
+                            bold: R === 7 || R === 8
+                        },
+                        fill: R === 7 ? { fgColor: { rgb: "FCE4D6" } } : 
+                              R <= 6 ? { fgColor: { rgb: "E2EFDA" } } : undefined,
+                        border: {
+                            top: { style: "thin", color: { rgb: "000000" } },
+                            bottom: { style: "thin", color: { rgb: "000000" } },
+                            left: { style: "thin", color: { rgb: "000000" } },
+                            right: { style: "thin", color: { rgb: "000000" } }
+                        }
+                    };
+                }
             }
 
-            const wsMatiere = buildSheet(
-                instLines,
-                `جدول مراقبة مادة : ${matiere}`,
-                matCols,
-                matRows,
-                finalColW,
-                {
-                    title:     `الأساتذة غير الموزعين على هذه المادة`,
-                    columns:   naCols,
-                    rows:      naRows,
-                    totalLine: `✔ الموزعون: ${nbAff}  ✖ غير الموزعين: ${nbNon}  Σ الإجمالي: ${total}`
-                }
-            );
+            wsNonAffectes['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }];
+            XLSX.utils.book_append_sheet(wb, wsNonAffectes, 'غير الموزعين');
 
-            const sheetName = matiere.substring(0, 31);
-            XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+            /* =========================
+               FEUILLES PAR MATIÈRE
+            ========================= */
+            const matieresGroup = {};
+            this.affectations.forEach(a => {
+                if (!matieresGroup[a.matiere]) matieresGroup[a.matiere] = [];
+                matieresGroup[a.matiere].push(a);
+            });
+
+            for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
+                const dataMatiere = [];
+                
+                dataMatiere.push([`المديرية : ${university}`]);
+                dataMatiere.push([`الأكادمية: ${faculty}`]);
+                dataMatiere.push([`الوزارة: ${facultyy}`]);
+                dataMatiere.push([`المؤسسة : ${ecole}`]);
+                dataMatiere.push([`السنة الدراسية : ${academicYear}`]);
+                dataMatiere.push([`نوع الامتحان : ${this.type_examen}`]);
+                dataMatiere.push([`المادة : ${matiere}`]);
+                dataMatiere.push([]);
+
+                const headerMatiere = ['القاعة', 'تاريخ ووقت الامتحان'];
+                for (let i = nbrProfsSalle; i >= 1; i--) headerMatiere.push(`الأستاذ ${i}`);
+                dataMatiere.push(headerMatiere);
+
+                const groupedBySalle = {};
+                affectationsMatiere.forEach(a => {
+                    if (!groupedBySalle[a.salle]) {
+                        groupedBySalle[a.salle] = { salle: a.salle, date: a.date_heure, profs: [] };
+                    }
+                    groupedBySalle[a.salle].profs.push(a.professeur);
+                });
+
+                Object.values(groupedBySalle).forEach(item => {
+                    const row = [item.salle, item.date];
+                    for (let i = nbrProfsSalle - 1; i >= 0; i--) row.push(item.profs[i] || '');
+                    dataMatiere.push(row);
+                });
+
+                const wsMatiere = XLSX.utils.aoa_to_sheet(dataMatiere);
+                wsMatiere['!rtl'] = true;
+                const rangeMatiere = XLSX.utils.decode_range(wsMatiere['!ref']);
+
+                for (let R = rangeMatiere.s.r; R <= rangeMatiere.e.r; R++) {
+                    for (let C = rangeMatiere.s.c; C <= rangeMatiere.e.c; C++) {
+                        const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!wsMatiere[ref]) continue;
+
+                        wsMatiere[ref].s = {
+                            alignment: { horizontal: 'center', vertical: 'center', readingOrder: 'rtl' },
+                            font: { name: 'Arial', sz: R <= 6 ? 14 : 11, bold: R === 7 },
+                            fill: R === 7 ? { fgColor: { rgb: "E2EFDA" } } : 
+                                  R <= 6 ? { fgColor: { rgb: "FCE4D6" } } : undefined,
+                            border: {
+                                top: { style: "thin", color: { rgb: "000000" } },
+                                bottom: { style: "thin", color: { rgb: "000000" } },
+                                left: { style: "thin", color: { rgb: "000000" } },
+                                right: { style: "thin", color: { rgb: "000000" } }
+                            }
+                        };
+                    }
+                }
+                
+                const colWidthsMatiere = [];
+                for (let i = 0; i < nbrProfsSalle; i++) colWidthsMatiere.push({ wch: 25 });
+                colWidthsMatiere.push({ wch: 25 }, { wch: 15 });
+                wsMatiere['!cols'] = colWidthsMatiere;
+
+                const sheetName = matiere.substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+            }
+
+            /* =========================
+               SAUVEGARDE
+            ========================= */
+            const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            this.closeModal('excelConfigModal');
+            Swal.fire('نجاح', `تم إنشاء ملف Excel بنجاح يحتوي على:<br>1. الجدول العام<br>2. قائمة غير الموزعين<br>3. جداول المواد`, 'success');
+
+        } catch (e) {
+            Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
         }
-
-        // ═══════════════════════════════════════════════════════════
-        // SAUVEGARDE
-        // ═══════════════════════════════════════════════════════════
-        const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-
-        this.closeModal('excelConfigModal');
-        Swal.fire({
-            title: 'نجاح',
-            html: `تم إنشاء ملف Excel بنجاح يحتوي على:<br>
-                   <b>جداول لكل مادة</b> مع قائمة الأساتذة غير الموزعين (الاسم، المادة، عدم التوفر)`,
-            icon: 'success'
-        });
-
-    } catch (e) {
-        Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
     }
-}
 
     // ========== STATISTIQUES ==========
 
@@ -1644,6 +1676,7 @@ class ApplicationAffectation {
     }
 }
 
+// Initialiser l'application lorsque la page est chargée
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ApplicationAffectation();
 });

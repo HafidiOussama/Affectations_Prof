@@ -1299,336 +1299,459 @@ class ApplicationAffectation {
             .map(prof => ({ ...prof, raison: 'غير محدد (بيانات مخزنة)' }));
     }
 
-   genererExcel() {
-    const university = document.getElementById('universityName').value.trim();
-    const faculty    = document.getElementById('facultyName').value.trim();
-    const ministere  = document.getElementById('faculty').value.trim();
-    const academicYear = document.getElementById('academicYear').value.trim();
-    const ecole      = document.getElementById('ecoleName').value.trim();
+    genererExcel() {
+        const university = document.getElementById('universityName').value.trim();
+        const faculty    = document.getElementById('facultyName').value.trim();
+        const ministere  = document.getElementById('faculty').value.trim();
+        const academicYear = document.getElementById('academicYear').value.trim();
+        const ecole      = document.getElementById('ecoleName').value.trim();
 
-    if (!university || !faculty || !academicYear || !ecole) {
-        Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
-        return;
-    }
+        if (!university || !faculty || !academicYear || !ecole) {
+            Swal.fire('خطأ', 'يرجى ملء جميع الحقول الإلزامية', 'error');
+            return;
+        }
 
-    try {
-        const wb = XLSX.utils.book_new();
-        const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
+        try {
+            const wb = XLSX.utils.book_new();
+            const nbrProfsSalle = parseInt(document.getElementById('profsPerRoom').value) || 2;
 
-        // ═══════════════════════════════════════════════════════════
-        // PALETTE DE COULEURS
-        // ═══════════════════════════════════════════════════════════
-        const CLR = {
-            INST_BG:   '1F3864',
-            INST_FG:   'FFFFFF',
-            TITLE_BG:  '2E75B6',
-            TITLE_FG:  'FFFFFF',
-            COL_BG:    '2E75B6',
-            COL_FG:    'FFFFFF',
-            ROW_EVEN:  'DEEAF1',
-            ROW_ODD:   'FFFFFF',
-            NA_TITLE_BG: 'C55A11',
-            NA_TITLE_FG: 'FFFFFF',
-            NA_COL_BG:  'F4B942',
-            NA_COL_FG:  '000000',
-            NA_ROW_EVEN: 'FFF2CC',
-            NA_ROW_ODD:  'FFFFFF',
-            TOTAL_BG:   '1F3864',
-            TOTAL_FG:   'FFFFFF',
-            OK_BG:      '70AD47',
-            OK_FG:      'FFFFFF',
-            BORDER_DARK: '1F3864',
-            BORDER_MED:  '2E75B6',
-            BORDER_LIGHT:'BDD7EE',
-        };
-
-        const S = ({
-            bg = null, fg = '000000', sz = 11, bold = false,
-            italic = false, halign = 'center', valign = 'center',
-            wrapText = true, borderType = 'all', borderColor = null,
-            topBorderStyle = 'thin', bottomBorderStyle = 'thin'
-        } = {}) => {
-            const bc = borderColor || CLR.BORDER_LIGHT;
-            const border = {};
-            if (borderType === 'all' || borderType === 'outer') {
-                const mk = (style, color) => ({ style, color: { rgb: color } });
-                border.top    = mk(topBorderStyle,    bc);
-                border.bottom = mk(bottomBorderStyle, bc);
-                border.left   = mk('thin', bc);
-                border.right  = mk('thin', bc);
-            }
-            const s = {
-                font: { name: 'Arial', sz, bold, italic, color: { rgb: fg } },
-                alignment: { horizontal: halign, vertical: valign,
-                             readingOrder: 2, wrapText },
-                border
+            // ═══════════════════════════════════════════════════════════
+            // PALETTE DE COULEURS PROFESSIONNELLE
+            // ═══════════════════════════════════════════════════════════
+            const CLR = {
+                // En-têtes du document (bandeau institutionnel)
+                INST_BG:   '1F3864',   // bleu marine foncé
+                INST_FG:   'FFFFFF',   // blanc
+                // Titre principal (nom de la feuille/matière)
+                TITLE_BG:  '2E75B6',   // bleu moyen
+                TITLE_FG:  'FFFFFF',
+                // En-têtes de colonnes
+                COL_BG:    '2E75B6',   // bleu moyen
+                COL_FG:    'FFFFFF',
+                // Lignes de données paires/impaires
+                ROW_EVEN:  'DEEAF1',   // bleu très clair
+                ROW_ODD:   'FFFFFF',   // blanc
+                // Section non-affectés — titre
+                NA_TITLE_BG: 'C55A11', // orange foncé
+                NA_TITLE_FG: 'FFFFFF',
+                // Section non-affectés — en-têtes colonnes
+                NA_COL_BG:  'F4B942',  // orange clair
+                NA_COL_FG:  '000000',
+                // Section non-affectés — lignes données
+                NA_ROW_EVEN: 'FFF2CC', // jaune très clair
+                NA_ROW_ODD:  'FFFFFF',
+                // Ligne de résumé / total
+                TOTAL_BG:   '1F3864',
+                TOTAL_FG:   'FFFFFF',
+                // Message "tout affecté"
+                OK_BG:      '70AD47',
+                OK_FG:      'FFFFFF',
+                // Bordures
+                BORDER_DARK: '1F3864',
+                BORDER_MED:  '2E75B6',
+                BORDER_LIGHT:'BDD7EE',
             };
-            if (bg) s.fill = { patternType: 'solid', fgColor: { rgb: bg } };
-            return s;
-        };
 
-        const merge = (ws, r1, c1, r2, c2, value, style) => {
-            if (!ws['!merges']) ws['!merges'] = [];
-            ws['!merges'].push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
-            for (let R = r1; R <= r2; R++) {
-                for (let C = c1; C <= c2; C++) {
-                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-                    if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
-                    ws[cellRef].s = style;
+            // ═══════════════════════════════════════════════════════════
+            // HELPER : fabrique un objet style complet
+            // ═══════════════════════════════════════════════════════════
+            const S = ({
+                bg = null, fg = '000000', sz = 11, bold = false,
+                italic = false, halign = 'center', valign = 'center',
+                wrapText = true, borderType = 'all', borderColor = null,
+                topBorderStyle = 'thin', bottomBorderStyle = 'thin'
+            } = {}) => {
+                const bc = borderColor || CLR.BORDER_LIGHT;
+                const border = {};
+                if (borderType === 'all' || borderType === 'outer') {
+                    const mk = (style, color) => ({ style, color: { rgb: color } });
+                    border.top    = mk(topBorderStyle,    bc);
+                    border.bottom = mk(bottomBorderStyle, bc);
+                    border.left   = mk('thin', bc);
+                    border.right  = mk('thin', bc);
                 }
-            }
-            const ref = XLSX.utils.encode_cell({ r: r1, c: c1 });
-            ws[ref] = { v: value, t: 's', s: style };
-        };
+                const s = {
+                    font: { name: 'Arial', sz, bold, italic, color: { rgb: fg } },
+                    alignment: { horizontal: halign, vertical: valign,
+                                 readingOrder: 2, wrapText },
+                    border
+                };
+                if (bg) s.fill = { patternType: 'solid', fgColor: { rgb: bg } };
+                return s;
+            };
 
-        const setRowHeights = (ws, heights) => {
-            if (!ws['!rows']) ws['!rows'] = [];
-            heights.forEach(([r, h]) => {
-                while (ws['!rows'].length <= r) ws['!rows'].push({});
-                ws['!rows'][r] = { hpt: h };
-            });
-        };
-
-        const ST = {
-            inst:     S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 11, bold: false, borderColor: CLR.BORDER_DARK }),
-            instBold: S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 13, bold: true,  borderColor: CLR.BORDER_DARK }),
-            title:    S({ bg: CLR.TITLE_BG,    fg: CLR.TITLE_FG,    sz: 14, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            colHead:  S({ bg: CLR.COL_BG,      fg: CLR.COL_FG,      sz: 11, bold: true,  borderColor: CLR.BORDER_MED }),
-            rowEven:  S({ bg: CLR.ROW_EVEN,    fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
-            rowOdd:   S({ bg: CLR.ROW_ODD,     fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
-            naTitle:  S({ bg: CLR.NA_TITLE_BG, fg: CLR.NA_TITLE_FG, sz: 12, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            naColHead:S({ bg: CLR.NA_COL_BG,   fg: CLR.NA_COL_FG,   sz: 11, bold: true,  borderColor: '000000' }),
-            naEven:   S({ bg: CLR.NA_ROW_EVEN, fg: '000000',        sz: 10, borderColor: '999999' }),
-            naOdd:    S({ bg: CLR.NA_ROW_ODD,  fg: '000000',        sz: 10, borderColor: '999999' }),
-            total:    S({ bg: CLR.TOTAL_BG,    fg: CLR.TOTAL_FG,    sz: 11, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
-            ok:       S({ bg: CLR.OK_BG,       fg: CLR.OK_FG,       sz: 11, bold: true,  borderColor: '70AD47' }),
-        };
-
-        // ═══════════════════════════════════════════════════════════
-        // HELPER PRINCIPAL : construit un worksheet
-        // ═══════════════════════════════════════════════════════════
-        const buildSheet = (headerLines, tableTitle, columns, rows, colWidths, naSection = null) => {
-            const ws = {};
-            const nbCols = Math.max(columns.length, naSection ? (naSection.columns || []).length : 0);
-            let r = 0;
-            const rowHeights = [];
-
-            // Lignes institutionnelles
-            headerLines.forEach((line, i) => {
-                const isFirst = (i === 0);
-                const st = isFirst ? ST.instBold : ST.inst;
-                const text = line.value ? `${line.label} ${line.value}` : line.label;
-                merge(ws, r, 0, r, nbCols - 1, text, st);
-                rowHeights.push([r, isFirst ? 22 : 18]);
-                r++;
-            });
-
-            // Ligne vide
-            rowHeights.push([r, 8]);
-            r++;
-
-            // Titre principal
-            merge(ws, r, 0, r, nbCols - 1, tableTitle, ST.title);
-            rowHeights.push([r, 28]);
-            r++;
-
-            // Ligne vide
-            rowHeights.push([r, 8]);
-            r++;
-
-            // En-têtes colonnes
-            columns.forEach((col, c) => {
-                const ref = XLSX.utils.encode_cell({ r, c });
-                ws[ref] = { v: col, t: 's', s: ST.colHead };
-            });
-            rowHeights.push([r, 22]);
-            r++;
-
-            // Données
-            rows.forEach((row, idx) => {
-                const st = idx % 2 === 0 ? ST.rowEven : ST.rowOdd;
-                row.forEach((cell, c) => {
-                    const ref = XLSX.utils.encode_cell({ r, c });
-                    ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
-                });
-                for (let c = row.length; c < columns.length; c++) {
-                    const ref = XLSX.utils.encode_cell({ r, c });
-                    ws[ref] = { v: '', t: 's', s: st };
-                }
-                rowHeights.push([r, 18]);
-                r++;
-            });
-
-            // Section non-affectés
-            if (naSection) {
-                rowHeights.push([r, 10]);
-                r++;
-
-                merge(ws, r, 0, r, nbCols - 1, naSection.title, ST.naTitle);
-                rowHeights.push([r, 24]);
-                r++;
-
-                if (naSection.rows.length === 0) {
-                    merge(ws, r, 0, r, nbCols - 1, '✅ جميع الأساتذة تم توزيعهم على هذه المادة', ST.ok);
-                    rowHeights.push([r, 20]);
-                    r++;
-                } else {
-                    // En-têtes colonnes non-affectés (3 colonnes seulement)
-                    const naCols = naSection.columns;
-                    naCols.forEach((col, c) => {
-                        const ref = XLSX.utils.encode_cell({ r, c });
-                        ws[ref] = { v: col, t: 's', s: ST.naColHead };
-                    });
-                    // Remplir jusqu'à nbCols
-                    for (let c = naCols.length; c < nbCols; c++) {
-                        const ref = XLSX.utils.encode_cell({ r, c });
-                        ws[ref] = { v: '', t: 's', s: ST.naColHead };
+            // ═══════════════════════════════════════════════════════════
+            // HELPER : applique un style à toute une plage
+            // ═══════════════════════════════════════════════════════════
+            const applyRange = (ws, r1, c1, r2, c2, style) => {
+                for (let R = r1; R <= r2; R++) {
+                    for (let C = c1; C <= c2; C++) {
+                        const ref = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!ws[ref]) ws[ref] = { v: '', t: 's' };
+                        ws[ref].s = style;
                     }
-                    rowHeights.push([r, 20]);
-                    r++;
-
-                    // Données non-affectés
-                    naSection.rows.forEach((row, idx) => {
-                        const st = idx % 2 === 0 ? ST.naEven : ST.naOdd;
-                        row.forEach((cell, c) => {
-                            const ref = XLSX.utils.encode_cell({ r, c });
-                            ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
-                        });
-                        for (let c = row.length; c < nbCols; c++) {
-                            const ref = XLSX.utils.encode_cell({ r, c });
-                            ws[ref] = { v: '', t: 's', s: st };
-                        }
-                        rowHeights.push([r, 18]);
-                        r++;
-                    });
-
-                    // Ligne total
-                    merge(ws, r, 0, r, nbCols - 1, naSection.totalLine, ST.total);
-                    rowHeights.push([r, 22]);
-                    r++;
                 }
-            }
+            };
 
-            ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r - 1, c: nbCols - 1 } });
-            ws['!cols'] = colWidths.map(w => ({ wch: w }));
-            ws['!rtl'] = true;
-            setRowHeights(ws, rowHeights);
+            // ═══════════════════════════════════════════════════════════
+            // HELPER : fusionne des cellules et place la valeur + style
+            // ═══════════════════════════════════════════════════════════
+            const merge = (ws, r1, c1, r2, c2, value, style) => {
+                if (!ws['!merges']) ws['!merges'] = [];
+                ws['!merges'].push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
+                const ref = XLSX.utils.encode_cell({ r: r1, c: c1 });
+                ws[ref] = { v: value, t: 's', s: style };
+                // Appliquer le même style aux cellules fusionnées (pour les bordures)
+                for (let R = r1; R <= r2; R++) {
+                    for (let C = c1; C <= c2; C++) {
+                        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+                        ws[cellRef].s = style;
+                    }
+                }
+            };
 
-            return ws;
-        };
+            // ═══════════════════════════════════════════════════════════
+            // HELPER : hauteurs de lignes
+            // ═══════════════════════════════════════════════════════════
+            const setRowHeights = (ws, heights) => {
+                if (!ws['!rows']) ws['!rows'] = [];
+                heights.forEach(([r, h]) => {
+                    while (ws['!rows'].length <= r) ws['!rows'].push({});
+                    ws['!rows'][r] = { hpt: h };
+                });
+            };
 
-        // ═══════════════════════════════════════════════════════════
-        // Lignes institutionnelles communes
-        // ═══════════════════════════════════════════════════════════
-        const instLines = [
-            { label: ministere },
-            { label: 'الأكادمية:', value: faculty },
-            { label: 'المديرية:', value: university },
-            { label: 'المؤسسة:', value: ecole },
-            { label: 'السنة الدراسية:', value: academicYear },
-            { label: 'نوع الامتحان:', value: this.type_examen },
-        ];
+            // ═══════════════════════════════════════════════════════════
+            // STYLES PRÉDÉFINIS
+            // ═══════════════════════════════════════════════════════════
+            const ST = {
+                inst:     S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 11, bold: false, borderColor: CLR.BORDER_DARK }),
+                instBold: S({ bg: CLR.INST_BG,     fg: CLR.INST_FG,     sz: 13, bold: true,  borderColor: CLR.BORDER_DARK }),
+                title:    S({ bg: CLR.TITLE_BG,    fg: CLR.TITLE_FG,    sz: 14, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
+                colHead:  S({ bg: CLR.COL_BG,      fg: CLR.COL_FG,      sz: 11, bold: true,  borderColor: CLR.BORDER_MED }),
+                rowEven:  S({ bg: CLR.ROW_EVEN,    fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
+                rowOdd:   S({ bg: CLR.ROW_ODD,     fg: '000000',        sz: 11, borderColor: CLR.BORDER_LIGHT }),
+                naTitle:  S({ bg: CLR.NA_TITLE_BG, fg: CLR.NA_TITLE_FG, sz: 12, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
+                naColHead:S({ bg: CLR.NA_COL_BG,   fg: CLR.NA_COL_FG,   sz: 11, bold: true,  borderColor: '000000' }),
+                naEven:   S({ bg: CLR.NA_ROW_EVEN, fg: '000000',        sz: 10, borderColor: '999999' }),
+                naOdd:    S({ bg: CLR.NA_ROW_ODD,  fg: '000000',        sz: 10, borderColor: '999999' }),
+                total:    S({ bg: CLR.TOTAL_BG,    fg: CLR.TOTAL_FG,    sz: 11, bold: true,  borderColor: CLR.BORDER_DARK, topBorderStyle: 'medium', bottomBorderStyle: 'medium' }),
+                ok:       S({ bg: CLR.OK_BG,       fg: CLR.OK_FG,       sz: 11, bold: true,  borderColor: '70AD47' }),
+            };
 
-        // ═══════════════════════════════════════════════════════════
-        // FEUILLES PAR MATIÈRE UNIQUEMENT
-        // ═══════════════════════════════════════════════════════════
-        const matieresGroup = {};
-        this.affectations.forEach(a => {
-            if (!matieresGroup[a.matiere]) matieresGroup[a.matiere] = [];
-            matieresGroup[a.matiere].push(a);
-        });
+            // ═══════════════════════════════════════════════════════════
+            // HELPER PRINCIPAL : construit un worksheet complet
+            // params:
+            //   headerLines  : [{label, value}]  → lignes institutionnelles
+            //   tableTitle   : string            → titre principal (matière, etc.)
+            //   columns      : string[]          → noms des colonnes
+            //   rows         : any[][]           → données
+            //   colWidths    : number[]          → largeurs colonnes (wch)
+            //   naSection    : { title, columns, rows } | null
+            // ═══════════════════════════════════════════════════════════
+            const buildSheet = (headerLines, tableTitle, columns, rows, colWidths, naSection = null) => {
+                const ws = {};
+                const nbCols = Math.max(columns.length, naSection ? (naSection.columns || []).length : 0);
+                let r = 0;
 
-        for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
+                // ── Lignes institutionnelles ──────────────────────────
+                const rowHeights = [];
+                headerLines.forEach((line, i) => {
+                    const isFirst = (i === 0);
+                    const st = isFirst ? ST.instBold : ST.inst;
+                    const text = line.value ? `${line.label} ${line.value}` : line.label;
+                    merge(ws, r, 0, r, nbCols - 1, text, st);
+                    rowHeights.push([r, isFirst ? 22 : 18]);
+                    r++;
+                });
 
-            // ── Colonnes tableau affectation ──
-            const matCols = ['القاعة', 'تاريخ ووقت الامتحان'];
-            for (let i = nbrProfsSalle; i >= 1; i--) matCols.push(`الأستاذ ${i}`);
+                // ── Ligne vide de séparation ──────────────────────────
+                rowHeights.push([r, 8]);
+                r++;
 
-            // ── Données tableau affectation ──
-            const groupedBySalle = {};
-            affectationsMatiere.forEach(a => {
-                if (!groupedBySalle[a.salle]) groupedBySalle[a.salle] = { salle: a.salle, date: a.date_heure, profs: [] };
-                groupedBySalle[a.salle].profs.push(a.professeur);
+                // ── Titre principal ───────────────────────────────────
+                merge(ws, r, 0, r, nbCols - 1, tableTitle, ST.title);
+                rowHeights.push([r, 28]);
+                r++;
+
+                // ── Ligne vide ────────────────────────────────────────
+                rowHeights.push([r, 8]);
+                r++;
+
+                // ── En-têtes colonnes ─────────────────────────────────
+                const dataStartRow = r + 1; // pour les merges de feuilles globales
+                columns.forEach((col, c) => {
+                    const ref = XLSX.utils.encode_cell({ r, c });
+                    ws[ref] = { v: col, t: 's', s: ST.colHead };
+                });
+                rowHeights.push([r, 22]);
+                const tableHeaderRow = r;
+                r++;
+
+                // ── Lignes de données ─────────────────────────────────
+                rows.forEach((row, idx) => {
+                    const st = idx % 2 === 0 ? ST.rowEven : ST.rowOdd;
+                    row.forEach((cell, c) => {
+                        const ref = XLSX.utils.encode_cell({ r, c });
+                        ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
+                    });
+                    // Remplir les cellules manquantes
+                    for (let c = row.length; c < columns.length; c++) {
+                        const ref = XLSX.utils.encode_cell({ r, c });
+                        ws[ref] = { v: '', t: 's', s: st };
+                    }
+                    rowHeights.push([r, 18]);
+                    r++;
+                });
+
+                // ── Section non-affectés ──────────────────────────────
+                if (naSection) {
+                    // Ligne vide de séparation
+                    rowHeights.push([r, 10]);
+                    r++;
+
+                    // Titre section
+                    merge(ws, r, 0, r, nbCols - 1, naSection.title, ST.naTitle);
+                    rowHeights.push([r, 24]);
+                    r++;
+
+                    if (naSection.rows.length === 0) {
+                        // Message "tout affecté"
+                        merge(ws, r, 0, r, nbCols - 1, '✅ جميع الأساتذة تم توزيعهم على هذه المادة', ST.ok);
+                        rowHeights.push([r, 20]);
+                        r++;
+                    } else {
+                        // En-têtes colonnes non-affectés
+                        const naCols = naSection.columns;
+                        naCols.forEach((col, c) => {
+                            const ref = XLSX.utils.encode_cell({ r, c });
+                            ws[ref] = { v: col, t: 's', s: ST.naColHead };
+                        });
+                        // Remplir les cellules manquantes jusqu'à nbCols
+                        for (let c = naCols.length; c < nbCols; c++) {
+                            const ref = XLSX.utils.encode_cell({ r, c });
+                            ws[ref] = { v: '', t: 's', s: ST.naColHead };
+                        }
+                        rowHeights.push([r, 20]);
+                        r++;
+
+                        // Données non-affectés
+                        naSection.rows.forEach((row, idx) => {
+                            const st = idx % 2 === 0 ? ST.naEven : ST.naOdd;
+                            row.forEach((cell, c) => {
+                                const ref = XLSX.utils.encode_cell({ r, c });
+                                ws[ref] = { v: cell == null ? '' : String(cell), t: 's', s: st };
+                            });
+                            for (let c = row.length; c < nbCols; c++) {
+                                const ref = XLSX.utils.encode_cell({ r, c });
+                                ws[ref] = { v: '', t: 's', s: st };
+                            }
+                            rowHeights.push([r, 18]);
+                            r++;
+                        });
+
+                        // Ligne de total
+                        merge(ws, r, 0, r, nbCols - 1, naSection.totalLine, ST.total);
+                        rowHeights.push([r, 22]);
+                        r++;
+                    }
+                }
+
+                // ── Dimensions ───────────────────────────────────────
+                ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r - 1, c: nbCols - 1 } });
+                ws['!cols'] = colWidths.map(w => ({ wch: w }));
+                ws['!rtl'] = true;
+                setRowHeights(ws, rowHeights);
+
+                return ws;
+            };
+
+            // ═══════════════════════════════════════════════════════════
+            // Lignes institutionnelles communes
+            // ═══════════════════════════════════════════════════════════
+            const instLines = [
+                { label: ministere },
+                { label: 'الأكادمية:', value: faculty },
+                { label: 'المديرية:', value: university },
+                { label: 'المؤسسة:', value: ecole },
+                { label: 'السنة الدراسية:', value: academicYear },
+                { label: 'نوع الامتحان:', value: this.type_examen },
+            ];
+
+            // ═══════════════════════════════════════════════════════════
+            // FEUILLE 1 : الجدول العام
+            // ═══════════════════════════════════════════════════════════
+            const globalCols = ['المادة', 'تاريخ ووقت الامتحان', 'القاعة'];
+            for (let i = nbrProfsSalle; i >= 1; i--) globalCols.push(`الأستاذ ${i}`);
+
+            const grouped = {};
+            this.affectations.forEach(a => {
+                const key = `${a.matiere}_${a.salle}`;
+                if (!grouped[key]) grouped[key] = { matiere: a.matiere, salle: a.salle, date: a.date_heure, profs: [] };
+                grouped[key].profs.push(a.professeur);
             });
 
-            const matRows = Object.values(groupedBySalle).map(item => {
-                const row = [item.salle, item.date];
+            const globalRows = Object.values(grouped).map(item => {
+                const row = [item.matiere, item.date, item.salle];
                 for (let i = nbrProfsSalle - 1; i >= 0; i--) row.push(item.profs[i] || '');
                 return row;
             });
 
-            // ── 3 colonnes pour les non-affectés ──
-            const naCols = ['الاسم الكامل', 'المادة', 'عدم التوفر'];
+            const globalColW = [28, 28, 14];
+            for (let i = 0; i < nbrProfsSalle; i++) globalColW.push(28);
 
-            const nbCols = Math.max(matCols.length, naCols.length);
+            const wsGlobal = buildSheet(instLines, 'الجدول العام لتوزيع الأساتذة', globalCols, globalRows, globalColW);
+            XLSX.utils.book_append_sheet(wb, wsGlobal, 'الجدول العام');
 
-            // Largeurs colonnes
-            const matColW = [14, 26];
-            for (let i = 0; i < nbrProfsSalle; i++) matColW.push(28);
-            while (matColW.length < nbCols) matColW.push(28);
+            // ═══════════════════════════════════════════════════════════
+            // FEUILLE 2 : غير الموزعين (global)
+            // ═══════════════════════════════════════════════════════════
+            const profsAffectesGlobal = new Set(this.affectations.map(a => a.professeur));
+            const naGlobalCols = ['الاسم الكامل', 'المادة', 'رقم التأجير', 'سبب عدم التوزيع'];
+            const naGlobalRows = [];
+            const naGlobalColW = [30, 20, 14, 35];
 
-            // ── Données non-affectés (3 colonnes seulement) ──
-            const profsNonAff = this.obtenirProfsNonAffectesParMatiere(matiere);
-            const nbAff = new Set(
-                this.affectations.filter(a => a.matiere === matiere).map(a => a.professeur)
-            ).size;
-            const nbNon = profsNonAff.length;
-            const total = this.professeurs.length;
-
-            const naRows = profsNonAff.map(prof => {
-                const indispoText = prof.indisponibilites && prof.indisponibilites.length > 0
-                    ? prof.indisponibilites.map(([j, p]) => `${j}-${p === 'matin' ? 'ص' : 'م'}`).join(' | ')
-                    : 'لا يوجد';
-                return [
-                    prof.nom,
-                    prof.matiere || '',
-                    indispoText
-                ];
+            // Grouper par matière pour un affichage structuré
+            const naParMatiere = {};
+            this.professeurs.forEach(prof => {
+                if (!profsAffectesGlobal.has(prof.nom)) {
+                    const mat = prof.matiere || 'غير محدد';
+                    if (!naParMatiere[mat]) naParMatiere[mat] = [];
+                    naParMatiere[mat].push(prof);
+                }
             });
 
-            // Largeurs finales (max entre les deux sections)
-            const naColW = [30, 20, 30];
-            const finalColW = [];
-            for (let i = 0; i < nbCols; i++) {
-                finalColW.push(Math.max(matColW[i] || 14, naColW[i] || 14));
-            }
+            Object.entries(naParMatiere).forEach(([mat, profs]) => {
+                // Ligne de séparateur matière (simulé en tant que données en couleur)
+                naGlobalRows.push([`── ${mat} (${profs.length} أستاذ) ──`, '', '', '']);
+                profs.forEach(prof => {
+                    naGlobalRows.push([
+                        prof.nom,
+                        prof.matiere || '',
+                        prof.numero || '',
+                        prof.indisponibilites && prof.indisponibilites.length > 0 ? 'لديه قيود توفر' : 'لم تتوفر خانة شاغرة'
+                    ]);
+                });
+            });
 
-            const wsMatiere = buildSheet(
+            const naTotalLine = `إجمالي الأساتذة: ${this.professeurs.length}  |  الموزعون: ${profsAffectesGlobal.size}  |  غير الموزعين: ${this.professeurs.length - profsAffectesGlobal.size}`;
+
+            const wsNA = buildSheet(
                 instLines,
-                `جدول مراقبة مادة : ${matiere}`,
-                matCols,
-                matRows,
-                finalColW,
-                {
-                    title:     `الأساتذة غير الموزعين على هذه المادة`,
-                    columns:   naCols,
-                    rows:      naRows,
-                    totalLine: `✔ الموزعون: ${nbAff}  ✖ غير الموزعين: ${nbNon}  Σ الإجمالي: ${total}`
-                }
+                'قائمة الأساتذة غير الموزعين',
+                naGlobalCols,
+                naGlobalRows,
+                naGlobalColW,
+                null  // pas de double section ici, on affiche tout dans le tableau principal
             );
 
-            const sheetName = matiere.substring(0, 31);
-            XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+            // Ajouter la ligne de total manuellement en fin
+            const naRange = XLSX.utils.decode_range(wsNA['!ref']);
+            const totalR = naRange.e.r + 1;
+            merge(wsNA, totalR, 0, totalR, naGlobalCols.length - 1, naTotalLine, ST.total);
+            wsNA['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: totalR, c: naGlobalCols.length - 1 } });
+            if (!wsNA['!rows']) wsNA['!rows'] = [];
+            while (wsNA['!rows'].length <= totalR) wsNA['!rows'].push({});
+            wsNA['!rows'][totalR] = { hpt: 22 };
+
+            XLSX.utils.book_append_sheet(wb, wsNA, 'غير الموزعين');
+
+            // ═══════════════════════════════════════════════════════════
+            // FEUILLES PAR MATIÈRE
+            // ═══════════════════════════════════════════════════════════
+            const matieresGroup = {};
+            this.affectations.forEach(a => {
+                if (!matieresGroup[a.matiere]) matieresGroup[a.matiere] = [];
+                matieresGroup[a.matiere].push(a);
+            });
+
+            for (const [matiere, affectationsMatiere] of Object.entries(matieresGroup)) {
+                // Colonnes du tableau d'affectation
+                const matCols = ['القاعة', 'تاريخ ووقت الامتحان'];
+                for (let i = nbrProfsSalle; i >= 1; i--) matCols.push(`الأستاذ ${i}`);
+
+                // Données du tableau d'affectation
+                const groupedBySalle = {};
+                affectationsMatiere.forEach(a => {
+                    if (!groupedBySalle[a.salle]) groupedBySalle[a.salle] = { salle: a.salle, date: a.date_heure, profs: [] };
+                    groupedBySalle[a.salle].profs.push(a.professeur);
+                });
+
+                const matRows = Object.values(groupedBySalle).map(item => {
+                    const row = [item.salle, item.date];
+                    for (let i = nbrProfsSalle - 1; i >= 0; i--) row.push(item.profs[i] || '');
+                    return row;
+                });
+
+                // Largeurs colonnes
+                const matColW = [14, 26];
+                for (let i = 0; i < nbrProfsSalle; i++) matColW.push(28);
+                // Ajouter des colonnes pour la section non-affectés (min 5 colonnes)
+                while (matColW.length < 5) matColW.push(28);
+                matColW.push(14, 30); // رقم التأجير + سبب
+
+                // Section non-affectés
+                const profsNonAff = this.obtenirProfsNonAffectesParMatiere(matiere);
+                const nbAff = new Set(this.affectations.filter(a => a.matiere === matiere).map(a => a.professeur)).size;
+                const nbNon = profsNonAff.length;
+                const total = this.professeurs.length;
+
+                const naRows = profsNonAff.map(prof => {
+                    const indispoText = prof.indisponibilites && prof.indisponibilites.length > 0
+                        ? prof.indisponibilites.map(([j, p]) => `${j}-${p === 'matin' ? 'ص' : 'م'}`).join(' | ')
+                        : 'لا يوجد';
+                    return [prof.nom, prof.matiere || '', prof.numero || '', indispoText, prof.raison || 'غير محدد'];
+                });
+
+                const naCols   = ['الاسم الكامل', 'مادته', 'رقم التأجير', 'عدم التوفر', 'سبب عدم التوزيع'];
+                const naColW   = [28, 20, 12, 22, 32];
+                const nbCols   = Math.max(matCols.length, naCols.length);
+                // Fusionner les largeurs
+                const finalColW = [];
+                for (let i = 0; i < nbCols; i++) {
+                    finalColW.push(Math.max(matColW[i] || 14, naColW[i] || 14));
+                }
+
+                const wsMatiere = buildSheet(
+                    instLines,
+                    `جدول مراقبة مادة : ${matiere}`,
+                    matCols,
+                    matRows,
+                    finalColW,
+                    {
+                        title:     `الأساتذة غير الموزعين على هذه المادة`,
+                        columns:   naCols,
+                        rows:      naRows,
+                        totalLine: `✔ الموزعون: ${nbAff}  ✖ غير الموزعين: ${nbNon}  Σ الإجمالي: ${total}  (${nbAff} + ${nbNon} = ${total})`
+                    }
+                );
+
+                const sheetName = matiere.substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, wsMatiere, sheetName);
+            }
+
+            // ═══════════════════════════════════════════════════════════
+            // SAUVEGARDE
+            // ═══════════════════════════════════════════════════════════
+            const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            this.closeModal('excelConfigModal');
+            Swal.fire({
+                title: 'نجاح',
+                html: `تم إنشاء ملف Excel بنجاح يحتوي على:<br>
+                       <b>1.</b> الجدول العام<br>
+                       <b>2.</b> قائمة الأساتذة غير الموزعين<br>
+                       <b>3.</b> جداول لكل مادة مع قائمة غير الموزعين وأسباب الإقصاء`,
+                icon: 'success'
+            });
+
+        } catch (e) {
+            Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
         }
-
-        // ═══════════════════════════════════════════════════════════
-        // SAUVEGARDE
-        // ═══════════════════════════════════════════════════════════
-        const fileName = `توزيع_الأساتذة_${new Date().toISOString().slice(0,10)}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-
-        this.closeModal('excelConfigModal');
-        Swal.fire({
-            title: 'نجاح',
-            html: `تم إنشاء ملف Excel بنجاح يحتوي على:<br>
-                   <b>جداول لكل مادة</b> مع قائمة الأساتذة غير الموزعين (الاسم، المادة، عدم التوفر)`,
-            icon: 'success'
-        });
-
-    } catch (e) {
-        Swal.fire('خطأ', `خطأ في تصدير الإكسل: ${e.message}`, 'error');
     }
-}
+
 
     // ========== STATISTIQUES ==========
 
